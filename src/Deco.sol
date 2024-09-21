@@ -1,107 +1,187 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
 
+contract Deco is Ownable {
 
-// Purchase through moon token, moon store.
-contract MyToken is ERC1155, Ownable {
-    uint8 stock = 10;
-
-    uint8 private _tokenId = 0;
+    uint32 public totalStock;
 
     // track number of orders
-    uint256 private _counterId;
-    
-    // link order number to buyers
-    mapping(uint256 => address) buyerAddr;
+    uint32 public orderNo;
 
-    // shipping status
-    mapping(uint256 => bool) isShipped;
+    uint256 public shippingCost;
 
-    // buyer shipping address
-    mapping(address => string) shippingAddr;
-
-    // store multiple buyer id's
-    mapping(address => uint8[]) buyerId;
-    
-    mapping(address => uint256) paid;
-
+    // single price
     uint256 public price;
 
-    struct ShipDetails {
-        bool isShipped;
+    // revenue generted after fulfilling shipping
+    uint256 revenueAfterShipping;
+
+    constructor(address owner) Ownable(owner) {
+
+    }
+
+    struct Order {
         string trackingNo;
+        string shippingAddr;
+        uint256 quantity;
+        uint256 amount;
+        address buyerAddr;
+        bool isShipped;
+        bool cancelAndRefund;
     }
 
-    mapping(uint256 => ShipDetails) shipping;
+    // store buyer orders
+    mapping(address => uint256[]) buyersOrder;
 
-    // string LINK = "https://bafybeiaium7ra2ho4zsdf6ix3t6waynpv2yuhmetd4ndeksd7xr5cqgezy.ipfs.nftstorage.link/";
+    mapping(address => uint256) payments;
 
-    constructor() ERC1155(LINK) Ownable(msg.sender) {}
+    mapping (uint32 => Order) orders;
 
-    function uri(uint256 tokenId) override public view returns (string memory) {
-        return string(
-        abi.encodePacked(
-            LINK,
-            Strings.toString(tokenId),
-            ".json"
-        )
-        );
+    uint256 totalPayment;
+
+    function setStock(uint32 newTotalStock) external onlyOwner {
+        totalStock = newTotalStock;
     }
-    
+
+    function setPrice(uint256 newPrice) external onlyOwner {
+        price = newPrice;
+    }
+
+    function setShippingCost(uint256 newShippingCost) external onlyOwner {
+        shippingCost = newShippingCost;
+    }
+
     function purchase(uint8 quantity, string memory destination) external payable {
-        require(quantity < stock, "Invalid quanity");
-
-        require(_counterId < stock - 1, "Out of stock");
+        require(quantity > 0 && quantity <= totalStock, "Invalid quantity");
 
         uint256 amount = msg.value;
 
-        require((amount == price) && (amount > 0), "Amount not correct");
+        require(amount == price * quantity, "Incorrect payment amount");
 
-        // mint the token+
+        // create new struct with order no
+        Order storage order = orders[orderNo];
 
-        _mint(msg.sender, _tokenId, 1, "");
+        order.shippingAddr = destination;
+        order.quantity = quantity;
+        order.buyerAddr = msg.sender;
         
-        buyerAddr[_counterId] = msg.sender;
+        // record the amount of payment by the buyer
+        payments[msg.sender] += amount;
 
-        // Buyer could have multiple orders.
-        buyerId[msg.sender].push(_counterId);
+        // overflow not possible, quantity <= stock, already checked.
+        unchecked {
+            totalStock -= quantity;
+        }
+    }
+    
+    function processShipment(uint32 _orderNum, string memory trackingNo) external onlyOwner {
+        Order storage order = orders[_orderNum];
+        require(!order.isShipped, "Already Shipped");
+        require(bytes(trackingNo).length == 0, "Tracking Number already set");
 
-        shippingAddr[msg.sender] = destination;
-
-        paid[msg.sender] = price;
-
-        _counterId++;
+        order.isShipped = true;
+        //  check the tracking number from the system.
+        order.trackingNo = trackingNo;
+        revenueAfterShipping += order.amount;
     }
 
-    // Set tracking number from the email address.
-    function updateShipment(uint256 tokenId, string memory trackingNo) external onlyOwner {
-            ShipDetails storage sd = shipping[tokenId];
-
-            require(!sd.isShipped, "Already Shipped");
-            sd.isShipped = true;
-
-            //  check the tracking number from the system.
-            sd.trackingNo = trackingNo;
+    // Update tracking number incase of problem
+    function updateTrackingNo(uint32 _orderNo, string memory trackingNo) external onlyOwner {
+        Order storage order = orders[_orderNo];
+        require(order.isShipped, "Use UpdateShipMent method");
+        order.trackingNo = trackingNo;
     }
 
-    function setPrice(uint256 amount) external onlyOwner {
-        price = amount;
-    }
-    function getIdOwner(uint256 nftId) external view returns(address) {
-        return ownerAddr[nftId];
-    }
-
-    function totalSold() public view returns(uint256) {
-        return _sold;
+    // Only able to withdraw for shipped items.
+    function withdraw(address receiver) external onlyOwner {
+        require(revenueAfterShipping > 0, "Insufficient Revenue");
+        payable(receiver).transfer(revenueAfterShipping);
+        revenueAfterShipping = 0;
     }
 
-    function getStatus() public view returns(
-        ShipDetails memory sd = shipping[tokenId];
-    )
+    function setCancelAndRefund(uint32 _orderNo) external onlyOwner {
+        Order storage order = orders[_orderNo];
+        require(!order.isShipped, "Already Shipped");
+        require(order.amount > 0, "Buyers need to pay");
+        order.cancelAndRefund = true;
+    }
+
+    // Think something about order Number
+    function collectRefund(uint32 _orderNo) external {
+        Order memory order = orders[_orderNo];
+        require(!order.isShipped && order.cancelAndRefund, "Invalid refund");
+        require(msg.sender == order.buyerAddr);
+
+        totalPayment -= order.amount;
+        payable(msg.sender).transfer(order.amount);
+    }
 }
 
+
+    // Need reentrant guard.
+    // Do not make too much complex.
+    // function refund(uint32 _orderNum) external onlyOwner {
+    //     Order memory order = orders[_orderNum];
+        
+    //     address currentBuyer = order.buyerAddr;
+
+    //     uint256 buyerPayment = payments[currentBuyer];
+
+    //     require(!order.isShipped && !order.cancelAndRefund, "Invalid refund");
+
+    //     require(buyerPayment > 0 && buyerPayment >= order.quantity * price, "Insufficent buyers amount");
+
+    //     payments[currentBuyer] -= 
+    //     // Function to transfer Ether from this contract to address from input
+    //     //(bool success,) = _to.call{value: _amount}("");
+    // }
+
+
+    // // orders => address mapping
+    // // addre
+    // // Basically good idea to group the orders and link that.
+    // function purchase(uint8 quantity, string memory destination) external payable {
+    //     require(quantity > 0 && quantity <= stock, "Invalid quantity");
+
+    //     uint256 amount = msg.value;
+
+    //     require(amount == price * quantity, "Incorrect payment amount");
+
+    //     // overflow not possible, quantity <= stock, already checked.
+    //     unchecked {
+    //         stock -= quantity;
+    //     }
+
+    //     // record the amount of payment by the buyer
+    //     paid[msg.sender] += amount;
+    // }
+
+    // // Set tracking number from the email address.
+    // function updateShipment(uint256 tokenId, string memory trackingNo) external onlyOwner {
+    //         ShipDetails storage sd = shipping[tokenId];
+
+    //         require(!sd.isShipped, "Already Shipped");
+
+    //         sd.isShipped = true;
+    //         //  check the tracking number from the system.
+    //         sd.trackingNo = trackingNo;
+    // }
+
+    // function setPrice(uint256 amount) external onlyOwner {
+    //     price = amount;
+    // }
+
 // How to contact a buyer if there is a shipping problem?
+    // function uri(uint256 tokenId) override public view returns (string memory) {
+    //     return string(
+    //     abi.encodePacked(
+    //         LINK,
+    //         Strings.toString(tokenId),
+    //         ".json"
+    //     )
+    //     );
+    // }
+
+        // string LINK = "https://bafybeiaium7ra2ho4zsdf6ix3t6waynpv2yuhmetd4ndeksd7xr5cqgezy.ipfs.nftstorage.link/";
