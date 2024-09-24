@@ -55,20 +55,18 @@ contract Deco is Ownable {
 
     function purchase(uint8 quantity, string memory destination) external payable {
         require(quantity > 0 && quantity <= totalStock, "Invalid quantity");
+        require(msg.value == price * quantity, "Incorrect payment amount");
 
         uint256 amount = msg.value;
-
-        require(amount == price * quantity, "Incorrect payment amount");
-
-        // create new struct with order no
-        Order storage order = orders[orderNo];
-
+        Order storage order = orders[orderNo++];
         order.shippingAddr = destination;
         order.quantity = quantity;
+        order.amount = amount;
         order.buyerAddr = msg.sender;
-        
+
         // record the amount of payment by the buyer
         payments[msg.sender] += amount;
+        buyersOrder[msg.sender].push(orderNo);
 
         // overflow not possible, quantity <= stock, already checked.
         unchecked {
@@ -79,7 +77,7 @@ contract Deco is Ownable {
     function processShipment(uint32 _orderNum, string memory trackingNo) external onlyOwner {
         Order storage order = orders[_orderNum];
         require(!order.isShipped, "Already Shipped");
-        require(bytes(trackingNo).length == 0, "Tracking Number already set");
+        require(bytes(order.trackingNo).length == 0, "Tracking Number already set");
 
         order.isShipped = true;
         //  check the tracking number from the system.
@@ -101,6 +99,8 @@ contract Deco is Ownable {
         revenueAfterShipping = 0;
     }
 
+    // set cancel multiple orderNo
+    // be aware of loop.
     function setCancelAndRefund(uint32 _orderNo) external onlyOwner {
         Order storage order = orders[_orderNo];
         require(!order.isShipped, "Already Shipped");
@@ -108,15 +108,29 @@ contract Deco is Ownable {
         order.cancelAndRefund = true;
     }
 
+    // for safety reason only 20 loops is allowed
+    function setCancelAndRefund(uint32[] calldata _ordersNo) external onlyOwner {
+        require(_ordersNo.length <= 20, "Maximum length");
+        for(uint8 i=0; i<_ordersNo.length; i++) {
+            Order storage order = orders[_ordersNo[i]];
+            require(!order.isShipped, "Already Shipped");
+            require(order.amount > 0, "Buyers need to pay");
+            order.cancelAndRefund = true;
+        }
+    }
+    
     // Think something about order Number
+    // It needs reentrance guard
     function collectRefund(uint32 _orderNo) external {
         Order memory order = orders[_orderNo];
         require(!order.isShipped && order.cancelAndRefund, "Invalid refund");
         require(msg.sender == order.buyerAddr);
-
         totalPayment -= order.amount;
-        payable(msg.sender).transfer(order.amount);
+        uint256 amount = order.amount;
+        order.amount = 0;
+        payable(msg.sender).transfer(amount);
     }
+    
 }
 
 
