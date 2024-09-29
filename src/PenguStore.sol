@@ -7,9 +7,13 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 // This is important
 
 // Shippin cost for the cap
+
+// When to use calldata vs memory
 contract PenguStore is Ownable {
 
     error InvalidQuantity(uint256 quantity);
+
+    error InvalidAmount(uint256 amount);
 
     // no of stock availale for sale
     uint32 public totalStock;
@@ -69,8 +73,7 @@ contract PenguStore is Ownable {
     function purchase(uint16 quantity, string memory destination) external payable {
         //require(quantity > 0 && quantity <= totalStock, "Invalid quantity");
         if(quantity == 0 || quantity > totalStock) revert InvalidQuantity(quantity);
-
-        require(msg.value == totalCost(quantity), "Incorrect payment amount");
+        if(msg.value != totalCost(quantity)) revert InvalidAmount(msg.value);
 
         uint256 amount = msg.value;
         Order storage order = orders[orderNo];
@@ -91,6 +94,26 @@ contract PenguStore is Ownable {
         }
         
         orderNo++;
+    }
+
+    function getOrderDetails(uint32 _orderNum) external view returns (
+        string memory shippingAddr,
+        uint256 quantity,
+        uint256 amount,
+        address buyerAddr,
+        bool isShipped,
+        bool cancelAndRefund
+    ){
+        Order memory order = orders[_orderNum];
+
+        return (
+            order.shippingAddr,
+            order.quantity,
+            order.amount,
+            order.buyerAddr,
+            order.isShipped,
+            order.cancelAndRefund
+        );
     }
 
     //Need to track the buyer balance
