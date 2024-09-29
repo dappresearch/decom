@@ -9,6 +9,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 // Shippin cost for the cap
 contract PenguStore is Ownable {
 
+    error InvalidQuantity(uint256 quantity);
+
+    // no of stock availale for sale
     uint32 public totalStock;
 
     // track number of orders
@@ -58,13 +61,15 @@ contract PenguStore is Ownable {
     }
 
     // need to properly calculate shipping cost
-    function totalCost(uint8 quantity) public view returns (uint256) {
+    function totalCost(uint16 quantity) public view returns (uint256) {
         return ((price * quantity) + shippingCost);
     }
 
     // Need to figure out accurate cost of the shipping
-    function purchase(uint8 quantity, string memory destination) external payable {
-        require(quantity > 0 && quantity <= totalStock, "Invalid quantity");
+    function purchase(uint16 quantity, string memory destination) external payable {
+        //require(quantity > 0 && quantity <= totalStock, "Invalid quantity");
+        if(quantity == 0 || quantity > totalStock) revert InvalidQuantity(quantity);
+
         require(msg.value == totalCost(quantity), "Incorrect payment amount");
 
         uint256 amount = msg.value;
@@ -74,15 +79,17 @@ contract PenguStore is Ownable {
         order.amount = amount;
         order.buyerAddr = msg.sender;
 
-        // record the amount of payment by the buyer
+        // Record the payment sent by the buyers.
         _payments[msg.sender] += amount;
         buyersOrder[msg.sender].push(orderNo);
+
+        totalPayment += msg.value;
 
         // overflow not possible, quantity <= stock, already checked.
         unchecked {
             totalStock -= quantity;
         }
-
+        
         orderNo++;
     }
 
@@ -110,7 +117,7 @@ contract PenguStore is Ownable {
     }
 
     // set cancel multiple orderNo
-    // be aware of loop.
+    // be aware of loop.+
     function setCancelAndRefund(uint32 _orderNo) external onlyOwner {
         Order storage order = orders[_orderNo];
         require(!order.isShipped, "Already Shipped");
@@ -153,12 +160,16 @@ contract PenguStore is Ownable {
         }
         
         order.amount = 0;
+        
+        //delete order
         delete orders[_orderNo];
 
         // remove the payment
         payable(msg.sender).transfer(amount);
     }
 }
+
+
 // How to contact a buyer if there is a shipping problem?
     // function uri(uint256 tokenId) override public view returns (string memory) {
     //     return string(
