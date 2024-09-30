@@ -3,26 +3,32 @@
 pragma solidity ^0.8.20;
 
 import {Test, console} from "forge-std/Test.sol";
-
 import "../src/PenguStore.sol";
 
 contract PenguStoreTest is Test {
     PenguStore public ps;
 
     address ownerAddr;
-    
+
+    address buyer1;
+
+    //$35 per cap base on 1 ether = 2650
     uint256 price = 13207547169811320 wei;
 
     function setUp() public {
         ownerAddr = address(1);
+        buyer1 = address(2);
+
+        vm.prank(buyer1);
         ps = new PenguStore(ownerAddr);
         vm.label(ownerAddr, "Owner Address");
+       
         vm.startPrank(ownerAddr);
         ps.setStock(300);
         ps.setPrice(price);
         vm.stopPrank();
     }
-
+    
     function testSetStock() public  {
         vm.prank(ownerAddr);
         ps.setStock(300);
@@ -34,10 +40,10 @@ contract PenguStoreTest is Test {
          vm.expectRevert(
             abi.encodeWithSelector(
                 Ownable.OwnableUnauthorizedAccount.selector,
-                address(2)
+                buyer1
             )
         );
-        vm.prank(address(2));
+        vm.prank(buyer1);
         ps.setStock(300);
     }
 
@@ -52,14 +58,14 @@ contract PenguStoreTest is Test {
          vm.expectRevert(
             abi.encodeWithSelector(
                 Ownable.OwnableUnauthorizedAccount.selector,
-                address(2)
+                buyer1
             )
         );
-        vm.prank(address(2));
+        vm.prank(buyer1);
         ps.setStock(300);
     }
     
-    function testPurchase_InvalidQauntity() public {
+    function testPurchase_InvalidQuantity() public {
          uint16 orderStock = 301;
          vm.expectRevert(
             abi.encodeWithSelector(
@@ -67,7 +73,7 @@ contract PenguStoreTest is Test {
                 orderStock
             )
         );
-        vm.prank(address(2));
+        vm.prank(buyer1);
         ps.purchase(orderStock, "randomAddress");
     }
 
@@ -83,10 +89,61 @@ contract PenguStoreTest is Test {
         ps.purchase{value: orderPrice }(2, "randomAddress");
     }
 
-    function purchase() public {
+    function testPurchase() public {
+        uint8 orderQty = 1;
+      
+        vm.prank(buyer1);
+        vm.deal(buyer1, 1 ether);
+        ps.purchase{value: price }(orderQty, 'randomAddress');
 
+        (string memory shippingAddr,
+        uint256 quantity,
+        uint256 amount,
+        address buyerAddr,
+        bool isShipped,
+        bool cancelAndRefund) = ps.getOrderDetails(ps.orderNo() - 1);
+
+        assertEq(shippingAddr, 'randomAddress');
+        assertEq(quantity, orderQty);
+        assertEq(amount, price);
+        assertEq(buyerAddr, buyer1);
+        assertEq(shippingAddr, 'randomAddress');
+        assertEq(isShipped, false);
+        assertEq(cancelAndRefund, false);
+
+        uint256[] memory getOrders = ps.getOrder(buyer1);
+
+        assertEq(getOrders.length, 1);
     }
 
+    function testPurchase_MultipleOrder() public {
+        uint8 orderQty = 59;
+
+        uint256 orderAmount = orderQty * price;
+
+        vm.prank(buyer1);
+        vm.deal(buyer1, 1 ether);
+        ps.purchase{value: orderAmount }(orderQty, 'randomAddress');
+
+        (string memory shippingAddr,
+        uint256 quantity,
+        uint256 amount,
+        address buyerAddr,
+        bool isShipped,
+        bool cancelAndRefund) = ps.getOrderDetails(ps.orderNo() - 1);
+
+        assertEq(shippingAddr, 'randomAddress');
+        assertEq(quantity, orderQty);
+        assertEq(amount, orderAmount);
+        assertEq(buyerAddr, buyer1);
+        assertEq(shippingAddr, 'randomAddress');
+        assertEq(isShipped, false);
+        assertEq(cancelAndRefund, false);
+
+        uint256[] memory getOrders = ps.getOrder(buyer1);
+
+        assertEq(getOrders.length, 1);
+    }
 
     // function purchase_test() public {
     // }

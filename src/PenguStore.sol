@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "forge-std/console.sol";
 
 // Need to figure out what to sell
 // This is important
@@ -47,10 +48,11 @@ contract PenguStore is Ownable {
     }
 
     // store buyer orders
-    mapping(address => uint256[]) buyersOrder;
+    mapping(address => uint256[]) public buyersOrder;
+
     mapping (uint32 => Order) orders;
 
-    mapping(address => uint256) private _payments;
+    mapping(address => uint256) public payments;
 
     function setStock(uint32 newTotalStock) external onlyOwner {
         totalStock = newTotalStock;
@@ -65,14 +67,14 @@ contract PenguStore is Ownable {
     }
 
     // need to properly calculate shipping cost
-    function totalCost(uint16 quantity) public view returns (uint256) {
+    function totalCost(uint32 quantity) public view returns (uint256) {
         return ((price * quantity) + shippingCost);
     }
 
     // Need to figure out accurate cost of the shipping
-    function purchase(uint16 quantity, string memory destination) external payable {
-        //require(quantity > 0 && quantity <= totalStock, "Invalid quantity");
+    function purchase(uint32 quantity, string memory destination) external payable {
         if(quantity == 0 || quantity > totalStock) revert InvalidQuantity(quantity);
+
         if(msg.value != totalCost(quantity)) revert InvalidAmount(msg.value);
 
         uint256 amount = msg.value;
@@ -83,7 +85,7 @@ contract PenguStore is Ownable {
         order.buyerAddr = msg.sender;
 
         // Record the payment sent by the buyers.
-        _payments[msg.sender] += amount;
+        payments[msg.sender] += amount;
         buyersOrder[msg.sender].push(orderNo);
 
         totalPayment += msg.value;
@@ -121,7 +123,7 @@ contract PenguStore is Ownable {
         Order storage order = orders[_orderNum];
         require(!order.isShipped, "Already Shipped");
         order.isShipped = true;
-
+        
         amountAfterShipping += order.amount;
     }
 
@@ -144,7 +146,7 @@ contract PenguStore is Ownable {
     function setCancelAndRefund(uint32 _orderNo) external onlyOwner {
         Order storage order = orders[_orderNo];
         require(!order.isShipped, "Already Shipped");
-        require(order.amount > 0 && _payments[msg.sender] >= order.amount, "Buyers need to pay");
+        require(order.amount > 0 && payments[msg.sender] >= order.amount, "Buyers need to pay");
         order.cancelAndRefund = true;
     }
 
@@ -154,7 +156,7 @@ contract PenguStore is Ownable {
         for(uint8 i=0; i<_ordersNo.length; i++) {
             Order storage order = orders[_ordersNo[i]];
             require(!order.isShipped, "Already Shipped");
-            require(order.amount > 0 && _payments[msg.sender] >= order.amount, "Buyers need to pay");
+            require(order.amount > 0 && payments[msg.sender] >= order.amount, "Buyers need to pay");
             order.cancelAndRefund = true;
         }
     }
@@ -173,13 +175,13 @@ contract PenguStore is Ownable {
 
         // must have valid payment
         // totalPayment is not necessary important here
-        require(_payments[msg.sender] >= order.amount && totalPayment >= order.amount, "Incorrect payment request");
+        require(payments[msg.sender] >= order.amount && totalPayment >= order.amount, "Incorrect payment request");
 
         uint256 amount = order.amount;
         
         unchecked {
             totalPayment -= order.amount;
-            _payments[msg.sender] -= order.amount;
+            payments[msg.sender] -= order.amount;
         }
         
         order.amount = 0;
@@ -190,6 +192,13 @@ contract PenguStore is Ownable {
         // remove the payment
         payable(msg.sender).transfer(amount);
     }
+
+    // Returns the orde array
+    function getOrder(address buyer) external view returns (uint256[] memory) {
+        return buyersOrder[buyer];
+    }
+
+
 }
 
 
