@@ -27,12 +27,12 @@ contract PenguStore is Ownable {
     // single price
     uint256 public price;
 
-    uint256 totalPayment;
+    uint256 public totalPayment;
 
-    uint256 totalWithdraw;
+    uint256 public totalWithdraw;
 
     // revenue generted after fulfilling shipping
-    uint256 amountAfterShipping;
+    uint256 public amountAfterShipping;
 
     constructor(address owner) Ownable(owner) {
 
@@ -197,8 +197,6 @@ contract PenguStore is Ownable {
     function getOrder(address buyer) external view returns (uint256[] memory) {
         return buyersOrder[buyer];
     }
-
-
 }
 
 

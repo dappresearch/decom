@@ -12,6 +12,8 @@ contract PenguStoreTest is Test {
 
     address buyer1;
 
+    uint16 constant STOCK = 300;
+
     //$35 per cap base on 1 ether = 2650
     uint256 price = 13207547169811320 wei;
 
@@ -24,7 +26,7 @@ contract PenguStoreTest is Test {
         vm.label(ownerAddr, "Owner Address");
        
         vm.startPrank(ownerAddr);
-        ps.setStock(300);
+        ps.setStock(STOCK);
         ps.setPrice(price);
         vm.stopPrank();
     }
@@ -111,9 +113,13 @@ contract PenguStoreTest is Test {
         assertEq(isShipped, false);
         assertEq(cancelAndRefund, false);
 
-        uint256[] memory getOrders = ps.getOrder(buyer1);
+        assertEq(ps.payments(buyer1), price);
 
+        uint256[] memory getOrders = ps.getOrder(buyer1);
         assertEq(getOrders.length, 1);
+
+        assertEq(ps.totalPayment(), price);
+        assertEq(ps.totalStock(), STOCK - orderQty);
     }
 
     function testPurchase_MultipleOrder() public {
@@ -140,13 +146,17 @@ contract PenguStoreTest is Test {
         assertEq(isShipped, false);
         assertEq(cancelAndRefund, false);
 
-        uint256[] memory getOrders = ps.getOrder(buyer1);
+        assertEq(ps.payments(buyer1), orderAmount);
 
+        uint256[] memory getOrders = ps.getOrder(buyer1);
         assertEq(getOrders.length, 1);
+
+        assertEq(ps.totalPayment(), orderAmount);
+        assertEq(ps.totalStock(), STOCK - orderQty);
     }
 
-    // function purchase_test() public {
-    // }
+
+
 }
 
 //    error OwnableInvalidOwner(address owner);
