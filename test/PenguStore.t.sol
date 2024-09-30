@@ -120,6 +120,7 @@ contract PenguStoreTest is Test {
 
         assertEq(ps.totalPayment(), price);
         assertEq(ps.totalStock(), STOCK - orderQty);
+        assertEq(ps.orderNo(), 1);
     }
 
     function testPurchase_MultipleOrder() public {
@@ -153,10 +154,20 @@ contract PenguStoreTest is Test {
 
         assertEq(ps.totalPayment(), orderAmount);
         assertEq(ps.totalStock(), STOCK - orderQty);
+        assertEq(ps.orderNo(), 1);
     }
 
+    function testProcessShipment() public {
+        vm.prank(buyer1);
+        vm.deal(buyer1, 1 ether);
+        ps.purchase{value: price }(1, 'randomAddress');
 
+        vm.prank(ownerAddr);
+        ps.processShipment(0);
 
+        (,,,,bool isShipped,) = ps.getOrderDetails(0);
+        assertEq(isShipped, true);
+    }
 }
 
 //    error OwnableInvalidOwner(address owner);
