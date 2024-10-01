@@ -172,17 +172,18 @@ contract PenguStoreTest is Test {
         vm.prank(buyer1);
         ps.purchase{value: price }(1, 'randomAddress');
 
+        
         vm.prank(ownerAddr);
         ps.processShipment(0);
 
-        vm.expectRevert(
+         vm.expectRevert(
             abi.encodeWithSelector(
                 PenguStore.AlreadyShipped.selector,
                 0
             )
         );
-        vm.prank(ownerAddr);
         ps.processShipment(0);
+        vm.stopPrank();
     }
 }
 
