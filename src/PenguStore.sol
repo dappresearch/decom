@@ -16,6 +16,8 @@ contract PenguStore is Ownable {
 
     error InvalidAmount(uint256 amount);
 
+    error AlreadyShipped(uint32 orderNo);
+
     // no of stock availale for sale
     uint32 public totalStock;
 
@@ -119,11 +121,12 @@ contract PenguStore is Ownable {
     }
 
     //Need to track the buyer balance
-    function processShipment(uint32 _orderNum) external onlyOwner {
-        Order storage order = orders[_orderNum];
-        require(!order.isShipped, "Already Shipped");
-        order.isShipped = true;
-        
+    function processShipment(uint32 _orderNo) external onlyOwner {
+        Order storage order = orders[_orderNo];
+
+        if(order.isShipped) revert AlreadyShipped(_orderNo);
+
+        order.isShipped = true;        
         amountAfterShipping += order.amount;
     }
 

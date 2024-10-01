@@ -24,6 +24,8 @@ contract PenguStoreTest is Test {
         vm.prank(buyer1);
         ps = new PenguStore(ownerAddr);
         vm.label(ownerAddr, "Owner Address");
+
+        vm.deal(buyer1, 1 ether);
        
         vm.startPrank(ownerAddr);
         ps.setStock(STOCK);
@@ -95,7 +97,6 @@ contract PenguStoreTest is Test {
         uint8 orderQty = 1;
       
         vm.prank(buyer1);
-        vm.deal(buyer1, 1 ether);
         ps.purchase{value: price }(orderQty, 'randomAddress');
 
         (string memory shippingAddr,
@@ -129,7 +130,6 @@ contract PenguStoreTest is Test {
         uint256 orderAmount = orderQty * price;
 
         vm.prank(buyer1);
-        vm.deal(buyer1, 1 ether);
         ps.purchase{value: orderAmount }(orderQty, 'randomAddress');
 
         (string memory shippingAddr,
@@ -159,7 +159,6 @@ contract PenguStoreTest is Test {
 
     function testProcessShipment() public {
         vm.prank(buyer1);
-        vm.deal(buyer1, 1 ether);
         ps.purchase{value: price }(1, 'randomAddress');
 
         vm.prank(ownerAddr);
@@ -167,6 +166,23 @@ contract PenguStoreTest is Test {
 
         (,,,,bool isShipped,) = ps.getOrderDetails(0);
         assertEq(isShipped, true);
+    }
+
+    function testProcessShipmentFail() public {
+        vm.prank(buyer1);
+        ps.purchase{value: price }(1, 'randomAddress');
+
+        vm.prank(ownerAddr);
+        ps.processShipment(0);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PenguStore.AlreadyShipped.selector,
+                0
+            )
+        );
+        vm.prank(ownerAddr);
+        ps.processShipment(0);
     }
 }
 
