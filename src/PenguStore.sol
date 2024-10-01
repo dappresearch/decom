@@ -90,14 +90,13 @@ contract PenguStore is Ownable {
         payments[msg.sender] += amount;
         buyersOrder[msg.sender].push(orderNo);
 
-        totalPayment += msg.value;
-
-        // overflow not possible, quantity <= stock, already checked.
+        // overflow not possible, totalStock > stock, already checked.
+        // msg.value <= (totalStock * price) + shippingCost.
         unchecked {
             totalStock -= quantity;
+            totalPayment += msg.value;
+            orderNo++;
         }
-        
-        orderNo++;
     }
 
     function getOrderDetails(uint32 _orderNum) external view returns (
@@ -126,8 +125,11 @@ contract PenguStore is Ownable {
 
         if(order.isShipped) revert AlreadyShipped(_orderNo);
 
-        order.isShipped = true;        
-        amountAfterShipping += order.amount;
+        order.isShipped = true; 
+
+        unchecked {
+            amountAfterShipping += order.amount;
+        }       
     }
 
     // Need to process multiple payment
@@ -138,7 +140,10 @@ contract PenguStore is Ownable {
 
         require(amountAfterShipping > 0, "Insufficient Revenue");
 
-        totalWithdraw += amountAfterShipping;
+        unchecked {
+            totalWithdraw += amountAfterShipping;
+        }
+
         amountAfterShipping = 0;
 
         payable(receiver).transfer(withdrawAmount);

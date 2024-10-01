@@ -5,12 +5,15 @@ pragma solidity ^0.8.20;
 import {Test, console} from "forge-std/Test.sol";
 import "../src/PenguStore.sol";
 
+
 contract PenguStoreTest is Test {
     PenguStore public ps;
 
     address ownerAddr;
 
     address buyer1;
+
+    address randomGuy;
 
     uint16 constant STOCK = 300;
 
@@ -68,30 +71,7 @@ contract PenguStoreTest is Test {
         vm.prank(buyer1);
         ps.setStock(300);
     }
-    
-    function testPurchase_InvalidQuantity() public {
-         uint16 orderStock = 301;
-         vm.expectRevert(
-            abi.encodeWithSelector(
-                PenguStore.InvalidQuantity.selector,
-                orderStock
-            )
-        );
-        vm.prank(buyer1);
-        ps.purchase(orderStock, "randomAddress");
-    }
 
-    function testPurchase_InvalidAmount() public {
-         uint8 orderPrice = 1 wei ;
-         vm.expectRevert(
-            abi.encodeWithSelector(
-                PenguStore.InvalidAmount.selector,
-                orderPrice
-            )
-        );
-
-        ps.purchase{value: orderPrice }(2, "randomAddress");
-    }
 
     function testPurchase() public {
         uint8 orderQty = 1;
@@ -156,6 +136,30 @@ contract PenguStoreTest is Test {
         assertEq(ps.totalStock(), STOCK - orderQty);
         assertEq(ps.orderNo(), 1);
     }
+    
+    function testPurchase_InvalidQuantity() public {
+         uint16 orderStock = 301;
+         vm.expectRevert(
+            abi.encodeWithSelector(
+                PenguStore.InvalidQuantity.selector,
+                orderStock
+            )
+        );
+        vm.prank(buyer1);
+        ps.purchase(orderStock, "randomAddress");
+    }
+
+    function testPurchase_InvalidAmount() public {
+         uint8 orderPrice = 1 wei ;
+         vm.expectRevert(
+            abi.encodeWithSelector(
+                PenguStore.InvalidAmount.selector,
+                orderPrice
+            )
+        );
+
+        ps.purchase{value: orderPrice }(2, "randomAddress");
+    }
 
     function testProcessShipment() public {
         vm.prank(buyer1);
@@ -166,25 +170,52 @@ contract PenguStoreTest is Test {
 
         (,,,,bool isShipped,) = ps.getOrderDetails(0);
         assertEq(isShipped, true);
+
+        assertEq(ps.amountAfterShipping(), price);
     }
 
-    function testProcessShipmentFail() public {
+    function testProcessShipmentFail_AlreadyShipped() public {
         vm.prank(buyer1);
         ps.purchase{value: price }(1, 'randomAddress');
 
-        
         vm.prank(ownerAddr);
         ps.processShipment(0);
 
-         vm.expectRevert(
+        vm.expectRevert(
             abi.encodeWithSelector(
                 PenguStore.AlreadyShipped.selector,
                 0
             )
         );
+        vm.prank(ownerAddr);
         ps.processShipment(0);
+    }
+
+     function testProcessShipmentFail_OnlyOwner() public {
+        vm.prank(buyer1);
+        ps.purchase{value: price }(1, 'randomAddress');
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Ownable.OwnableUnauthorizedAccount.selector,
+                buyer1
+            )
+        );
+        vm.prank(buyer1);
+        ps.processShipment(0);
+    }
+
+    function testWithdraw() public {
+        vm.startPrank(address(2));
+        ps.purchase{value: price }(1, 'randomAddress');
+        vm.stopPrank();
+
+        vm.startPrank(ownerAddr);
+        ps.processShipment(0);
+        ps.withdraw(address(3));
         vm.stopPrank();
     }
 }
+
 
 //    error OwnableInvalidOwner(address owner);
