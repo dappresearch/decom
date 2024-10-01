@@ -21,7 +21,7 @@ contract PenguStoreTest is Test {
     uint256 price = 13207547169811320 wei;
 
     function setUp() public {
-        ownerAddr = address(1);
+        ownerAddr = address(3);
         buyer1 = address(2);
 
         vm.prank(buyer1);
@@ -206,14 +206,17 @@ contract PenguStoreTest is Test {
     }
 
     function testWithdraw() public {
-        vm.startPrank(address(2));
+        vm.prank(address(2));
         ps.purchase{value: price }(1, 'randomAddress');
-        vm.stopPrank();
 
-        vm.startPrank(ownerAddr);
+        vm.prank(ownerAddr);
         ps.processShipment(0);
-        ps.withdraw(address(3));
-        vm.stopPrank();
+        
+        vm.prank(ownerAddr);
+        ps.withdraw();
+
+        // assertEq(ps.owner(), ownerAddr);
+        // console.log(ps.owner());
     }
 }
 

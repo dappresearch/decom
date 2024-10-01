@@ -108,7 +108,7 @@ contract PenguStore is Ownable {
         bool cancelAndRefund
     ){
         Order memory order = orders[_orderNum];
-
+        
         return (
             order.shippingAddr,
             order.quantity,
@@ -135,7 +135,7 @@ contract PenguStore is Ownable {
     // Need to process multiple payment
     // This is important.
     // Only able to withdraw for shipped items
-    function withdraw(address receiver) external onlyOwner {
+    function withdraw() external onlyOwner {
         uint256 withdrawAmount = amountAfterShipping;
 
         require(amountAfterShipping > 0, "Insufficient Revenue");
@@ -143,10 +143,11 @@ contract PenguStore is Ownable {
         unchecked {
             totalWithdraw += amountAfterShipping;
         }
-
+        
         amountAfterShipping = 0;
 
-        payable(receiver).transfer(withdrawAmount);
+        // (bool success, ) = payable(getOwner).call{value: withdrawAmount}("");
+        payable(owner()).transfer(withdrawAmount);
     }
 
     // set cancel multiple orderNo
