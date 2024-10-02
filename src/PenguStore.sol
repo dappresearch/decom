@@ -18,6 +18,8 @@ contract PenguStore is Ownable {
 
     error AlreadyShipped(uint32 orderNo);
 
+    error WithdrawAmountUnavailable(uint8 amount);
+
     // no of stock availale for sale
     uint32 public totalStock;
 
@@ -138,7 +140,7 @@ contract PenguStore is Ownable {
     function withdraw() external onlyOwner {
         uint256 withdrawAmount = amountAfterShipping;
 
-        require(amountAfterShipping > 0, "Insufficient Revenue");
+        if(amountAfterShipping == 0) revert WithdrawAmountUnavailable(0);
 
         unchecked {
             totalWithdraw += amountAfterShipping;

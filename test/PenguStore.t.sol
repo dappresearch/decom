@@ -215,8 +215,44 @@ contract PenguStoreTest is Test {
         vm.prank(ownerAddr);
         ps.withdraw();
 
-        // assertEq(ps.owner(), ownerAddr);
-        // console.log(ps.owner());
+        assertEq(ps.amountAfterShipping(), 0);
+    }
+
+    function testWithdraw_OnlyOwner() public {
+
+        address mockOwner = address(4);
+        
+        vm.prank(address(2));
+        ps.purchase{value: price }(1, 'randomAddress');
+
+        vm.prank(ownerAddr);
+        ps.processShipment(0);
+        
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Ownable.OwnableUnauthorizedAccount.selector,
+                mockOwner
+            )
+        );
+        vm.prank(mockOwner);
+        ps.withdraw();
+    }
+
+    function testWithdraw_WithdrawAmountUnavailable() public {
+        vm.prank(address(2));
+        ps.purchase{value: price }(1, 'randomAddress');
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PenguStore.WithdrawAmountUnavailable.selector,
+                0
+            )
+        );
+        
+        vm.prank(ownerAddr);
+        ps.withdraw();
+
+        assertEq(ps.amountAfterShipping(), 0);
     }
 }
 
