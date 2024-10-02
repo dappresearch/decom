@@ -11,7 +11,6 @@ import "forge-std/console.sol";
 
 // When to use calldata vs memory
 contract PenguStore is Ownable {
-
     error InvalidQuantity(uint256 quantity);
 
     error InvalidAmount(uint256 amount);
@@ -19,6 +18,10 @@ contract PenguStore is Ownable {
     error AlreadyShipped(uint32 orderNo);
 
     error WithdrawAmountUnavailable(uint8 amount);
+
+    error InsufficientBuyerPayment(uint256 amount);
+
+    error AlreadyCancelled(uint32 orderNo);
 
     // no of stock availale for sale
     uint32 public totalStock;
@@ -38,10 +41,8 @@ contract PenguStore is Ownable {
     // revenue generted after fulfilling shipping
     uint256 public amountAfterShipping;
 
-    constructor(address owner) Ownable(owner) {
+    constructor(address owner) Ownable(owner) {}
 
-    }
-    
     struct Order {
         string shippingAddr;
         uint256 quantity;
@@ -52,9 +53,9 @@ contract PenguStore is Ownable {
     }
 
     // store buyer orders
-    mapping(address => uint256[]) public buyersOrder;
+    mapping(address => uint32[]) public buyersOrder;
 
-    mapping (uint32 => Order) orders;
+    mapping(uint32 => Order) orders;
 
     mapping(address => uint256) public payments;
 
@@ -76,10 +77,14 @@ contract PenguStore is Ownable {
     }
 
     // Need to figure out accurate cost of the shipping
-    function purchase(uint32 quantity, string memory destination) external payable {
-        if(quantity == 0 || quantity > totalStock) revert InvalidQuantity(quantity);
+    function purchase(
+        uint32 quantity,
+        string memory destination
+    ) external payable {
+        if (quantity == 0 || quantity > totalStock)
+            revert InvalidQuantity(quantity);
 
-        if(msg.value != totalCost(quantity)) revert InvalidAmount(msg.value);
+        if (msg.value != totalCost(quantity)) revert InvalidAmount(msg.value);
 
         uint256 amount = msg.value;
         Order storage order = orders[orderNo];
@@ -101,16 +106,22 @@ contract PenguStore is Ownable {
         }
     }
 
-    function getOrderDetails(uint32 _orderNum) external view returns (
-        string memory shippingAddr,
-        uint256 quantity,
-        uint256 amount,
-        address buyerAddr,
-        bool isShipped,
-        bool cancelAndRefund
-    ){
+    function getOrderDetails(
+        uint32 _orderNum
+    )
+        external
+        view
+        returns (
+            string memory shippingAddr,
+            uint256 quantity,
+            uint256 amount,
+            address buyerAddr,
+            bool isShipped,
+            bool cancelAndRefund
+        )
+    {
         Order memory order = orders[_orderNum];
-        
+
         return (
             order.shippingAddr,
             order.quantity,
@@ -125,13 +136,13 @@ contract PenguStore is Ownable {
     function processShipment(uint32 _orderNo) external onlyOwner {
         Order storage order = orders[_orderNo];
 
-        if(order.isShipped) revert AlreadyShipped(_orderNo);
+        if (order.isShipped) revert AlreadyShipped(_orderNo);
 
-        order.isShipped = true; 
+        order.isShipped = true;
 
         unchecked {
             amountAfterShipping += order.amount;
-        }       
+        }
     }
 
     // Need to process multiple payment
@@ -140,12 +151,12 @@ contract PenguStore is Ownable {
     function withdraw() external onlyOwner {
         uint256 withdrawAmount = amountAfterShipping;
 
-        if(amountAfterShipping == 0) revert WithdrawAmountUnavailable(0);
+        if (amountAfterShipping == 0) revert WithdrawAmountUnavailable(0);
 
         unchecked {
             totalWithdraw += amountAfterShipping;
         }
-        
+
         amountAfterShipping = 0;
 
         // (bool success, ) = payable(getOwner).call{value: withdrawAmount}("");
@@ -154,24 +165,36 @@ contract PenguStore is Ownable {
 
     // set cancel multiple orderNo
     // be aware of loop.+
+    // Cannot return once the item has been shipped.
     function setCancelAndRefund(uint32 _orderNo) external onlyOwner {
         Order storage order = orders[_orderNo];
-        require(!order.isShipped, "Already Shipped");
-        require(order.amount > 0 && payments[msg.sender] >= order.amount, "Buyers need to pay");
+
+        if (order.isShipped) revert AlreadyShipped(_orderNo);
+
+        if (order.cancelAndRefund) revert AlreadyCancelled(_orderNo);
+
+        if (order.amount == 0 || payments[order.buyerAddr] > order.amount)
+            revert InsufficientBuyerPayment(_orderNo);
         order.cancelAndRefund = true;
     }
 
-    // for safety reason only 20 loops is allowed
-    function setCancelAndRefund(uint32[] calldata _ordersNo) external onlyOwner {
+    // // for safety reason only 20 loops is allowed
+    function setCancelAndRefund(
+        uint32[] calldata _ordersNo
+    ) external onlyOwner {
         require(_ordersNo.length <= 20, "Maximum length");
-        for(uint8 i=0; i<_ordersNo.length; i++) {
+        for (uint8 i = 0; i < _ordersNo.length; i++) {
             Order storage order = orders[_ordersNo[i]];
             require(!order.isShipped, "Already Shipped");
-            require(order.amount > 0 && payments[msg.sender] >= order.amount, "Buyers need to pay");
+
+            require(
+                order.amount > 0 && payments[msg.sender] >= order.amount,
+                "Buyers need to pay"
+            );
             order.cancelAndRefund = true;
         }
     }
-    
+
     // Think something about order Number
     // It needs reentrance guard
     function collectRefund(uint32 _orderNo) external {
@@ -179,24 +202,28 @@ contract PenguStore is Ownable {
 
         // buyer shoule be caller
         require(msg.sender == order.buyerAddr, "Caller should be buyer");
-        
+
         // order should not be shipped
         // orderNumber should be to set to cancelAndRefund
         require(!order.isShipped && order.cancelAndRefund, "Invalid refund");
 
         // must have valid payment
         // totalPayment is not necessary important here
-        require(payments[msg.sender] >= order.amount && totalPayment >= order.amount, "Incorrect payment request");
+        require(
+            payments[msg.sender] >= order.amount &&
+                totalPayment >= order.amount,
+            "Incorrect payment request"
+        );
 
         uint256 amount = order.amount;
-        
+
         unchecked {
             totalPayment -= order.amount;
             payments[msg.sender] -= order.amount;
         }
-        
+
         order.amount = 0;
-        
+
         //delete order
         delete orders[_orderNo];
 
@@ -205,21 +232,20 @@ contract PenguStore is Ownable {
     }
 
     // Returns the orde array
-    function getOrder(address buyer) external view returns (uint256[] memory) {
+    function getOrder(address buyer) external view returns (uint32[] memory) {
         return buyersOrder[buyer];
     }
 }
 
-
 // How to contact a buyer if there is a shipping problem?
-    // function uri(uint256 tokenId) override public view returns (string memory) {
-    //     return string(
-    //     abi.encodePacked(
-    //         LINK,
-    //         Strings.toString(tokenId),
-    //         ".json"
-    //     )
-    //     );
-    // }
+// function uri(uint256 tokenId) override public view returns (string memory) {
+//     return string(
+//     abi.encodePacked(
+//         LINK,
+//         Strings.toString(tokenId),
+//         ".json"
+//     )
+//     );
+// }
 
-        // string LINK = "https://bafybeiaium7ra2ho4zsdf6ix3t6waynpv2yuhmetd4ndeksd7xr5cqgezy.ipfs.nftstorage.link/";
+// string LINK = "https://bafybeiaium7ra2ho4zsdf6ix3t6waynpv2yuhmetd4ndeksd7xr5cqgezy.ipfs.nftstorage.link/";

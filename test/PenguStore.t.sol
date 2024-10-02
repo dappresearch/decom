@@ -96,7 +96,7 @@ contract PenguStoreTest is Test {
 
         assertEq(ps.payments(buyer1), price);
 
-        uint256[] memory getOrders = ps.getOrder(buyer1);
+        uint32[] memory getOrders = ps.getOrder(buyer1);
         assertEq(getOrders.length, 1);
 
         assertEq(ps.totalPayment(), price);
@@ -129,7 +129,7 @@ contract PenguStoreTest is Test {
 
         assertEq(ps.payments(buyer1), orderAmount);
 
-        uint256[] memory getOrders = ps.getOrder(buyer1);
+        uint32[] memory getOrders = ps.getOrder(buyer1);
         assertEq(getOrders.length, 1);
 
         assertEq(ps.totalPayment(), orderAmount);
@@ -219,7 +219,6 @@ contract PenguStoreTest is Test {
     }
 
     function testWithdraw_OnlyOwner() public {
-
         address mockOwner = address(4);
         
         vm.prank(address(2));
@@ -248,13 +247,63 @@ contract PenguStoreTest is Test {
                 0
             )
         );
-        
+
         vm.prank(ownerAddr);
         ps.withdraw();
 
         assertEq(ps.amountAfterShipping(), 0);
     }
+
+    function testSetCancelAndRefund() public {
+        vm.prank(buyer1);
+        ps.purchase{value: price }(1, 'randomAddress');
+        
+        uint32 orderNo = ps.buyersOrder(address(2), 0);
+        
+        vm.prank(ownerAddr);
+        ps.setCancelAndRefund(orderNo);
+    }
+
+    function testSetCancelAndRefundFail_AlreadyCancelled() public {
+        vm.prank(buyer1);
+        ps.purchase{value: price }(1, 'randomAddress');
+        
+        uint32 orderNo = ps.buyersOrder(address(2), 0);
+
+        vm.prank(ownerAddr);
+        ps.setCancelAndRefund(orderNo);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PenguStore.AlreadyCancelled.selector, orderNo)
+        );
+        vm.prank(ownerAddr);
+        ps.setCancelAndRefund(orderNo);
+    }
+
+
+     function testSetCancelAndRefundFail_AlreadyShipped() public {
+        vm.prank(buyer1);
+        ps.purchase{value: price }(1, 'randomAddress');
+        
+        uint32 orderNo = ps.buyersOrder(address(2), 0);
+
+        vm.prank(ownerAddr);
+        ps.processShipment(orderNo);
+        
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PenguStore.AlreadyShipped.selector, orderNo)
+        );
+        vm.prank(ownerAddr);
+        ps.setCancelAndRefund(orderNo);
+    }
+
+    
+
+
 }
+
 
 
 //    error OwnableInvalidOwner(address owner);
