@@ -41,6 +41,13 @@ contract PenguStore is Ownable {
     // revenue generted after fulfilling shipping
     uint256 public amountAfterShipping;
 
+    enum Status {
+        pending,
+        shipped,
+        cancelled,
+        refund
+    }
+
     constructor(address owner) Ownable(owner) {}
 
     struct Order {
@@ -48,8 +55,7 @@ contract PenguStore is Ownable {
         uint256 quantity;
         uint256 amount;
         address buyerAddr;
-        bool isShipped;
-        bool cancelAndRefund;
+        Status status;
     }
 
     // store buyer orders
@@ -92,6 +98,7 @@ contract PenguStore is Ownable {
         order.quantity = quantity;
         order.amount = amount;
         order.buyerAddr = msg.sender;
+        order.status = Status.pending;
 
         // Record the payment sent by the buyers.
         payments[msg.sender] += amount;
@@ -106,39 +113,13 @@ contract PenguStore is Ownable {
         }
     }
 
-    function getOrderDetails(
-        uint32 _orderNum
-    )
-        external
-        view
-        returns (
-            string memory shippingAddr,
-            uint256 quantity,
-            uint256 amount,
-            address buyerAddr,
-            bool isShipped,
-            bool cancelAndRefund
-        )
-    {
-        Order memory order = orders[_orderNum];
-
-        return (
-            order.shippingAddr,
-            order.quantity,
-            order.amount,
-            order.buyerAddr,
-            order.isShipped,
-            order.cancelAndRefund
-        );
-    }
-
     //Need to track the buyer balance
     function processShipment(uint32 _orderNo) external onlyOwner {
         Order storage order = orders[_orderNo];
 
-        if (order.isShipped) revert AlreadyShipped(_orderNo);
+        if (order.status == Status.shipped) revert AlreadyShipped(_orderNo);
 
-        order.isShipped = true;
+        order.status = Status.shipped;
 
         unchecked {
             amountAfterShipping += order.amount;
@@ -169,71 +150,80 @@ contract PenguStore is Ownable {
     function setCancelAndRefund(uint32 _orderNo) external onlyOwner {
         Order storage order = orders[_orderNo];
 
-        if (order.isShipped) revert AlreadyShipped(_orderNo);
+        if (order.status == Status.shipped) revert AlreadyShipped(_orderNo);
 
-        if (order.cancelAndRefund) revert AlreadyCancelled(_orderNo);
+        if (order.status == Status.cancelled) revert AlreadyCancelled(_orderNo);
 
         if (order.amount == 0 || payments[order.buyerAddr] > order.amount)
             revert InsufficientBuyerPayment(_orderNo);
-        order.cancelAndRefund = true;
+
+        order.status = Status.cancelled;
     }
 
-    // // for safety reason only 20 loops is allowed
+    // for safety reason only 20 loops is allowed
     function setCancelAndRefund(
-        uint32[] calldata _ordersNo
+        uint32[20] calldata _ordersNo
     ) external onlyOwner {
-        require(_ordersNo.length <= 20, "Maximum length");
         for (uint8 i = 0; i < _ordersNo.length; i++) {
             Order storage order = orders[_ordersNo[i]];
-            require(!order.isShipped, "Already Shipped");
+                if (order.status == Status.shipped) revert AlreadyShipped(i);
 
-            require(
-                order.amount > 0 && payments[msg.sender] >= order.amount,
-                "Buyers need to pay"
-            );
-            order.cancelAndRefund = true;
+            if (order.amount == 0 || payments[order.buyerAddr] > order.amount)
+                revert InsufficientBuyerPayment(i);
+                order.status = Status.cancelled;
         }
     }
 
-    // Think something about order Number
-    // It needs reentrance guard
-    function collectRefund(uint32 _orderNo) external {
-        Order memory order = orders[_orderNo];
+    // // Think something about order Number
+    // // It needs reentrance guard
+    // function collectRefund(uint32 _orderNo) external {
+    //     Order memory order = orders[_orderNo];
 
-        // buyer shoule be caller
-        require(msg.sender == order.buyerAddr, "Caller should be buyer");
+    //     // buyer shoule be caller
+    //     require(msg.sender == order.buyerAddr, "Caller should be buyer");
 
-        // order should not be shipped
-        // orderNumber should be to set to cancelAndRefund
-        require(!order.isShipped && order.cancelAndRefund, "Invalid refund");
+    //     // order should not be shipped
+    //     // orderNumber should be to set to cancelAndRefund
+    //     require(!order.isShipped && order.cancelAndRefund, "Invalid refund");
 
-        // must have valid payment
-        // totalPayment is not necessary important here
-        require(
-            payments[msg.sender] >= order.amount &&
-                totalPayment >= order.amount,
-            "Incorrect payment request"
-        );
+    //     // must have valid payment
+    //     // totalPayment is not necessary important here
+    //     require(
+    //         payments[msg.sender] >= order.amount &&
+    //             totalPayment >= order.amount,
+    //         "Incorrect payment request"
+    //     );
 
-        uint256 amount = order.amount;
+    //     uint256 amount = order.amount;
 
-        unchecked {
-            totalPayment -= order.amount;
-            payments[msg.sender] -= order.amount;
-        }
+    //     unchecked {
+    //         totalPayment -= order.amount;
+    //         payments[msg.sender] -= order.amount;
+    //     }
 
-        order.amount = 0;
+    //     order.amount = 0;
 
-        //delete order
-        delete orders[_orderNo];
+    //     //delete order
+    //     delete orders[_orderNo];
 
-        // remove the payment
-        payable(msg.sender).transfer(amount);
-    }
+    //     // remove the payment
+    //     payable(msg.sender).transfer(amount);
+    // }
 
     // Returns the orde array
     function getOrder(address buyer) external view returns (uint32[] memory) {
         return buyersOrder[buyer];
+    }
+
+    function getOrderDetails(
+        uint32 _orderNum
+    )
+        external
+        view
+        returns (Order memory)
+    {
+        Order memory order = orders[_orderNum];
+        return order;
     }
 }
 

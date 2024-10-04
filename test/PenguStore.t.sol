@@ -5,13 +5,14 @@ pragma solidity ^0.8.20;
 import {Test, console} from "forge-std/Test.sol";
 import "../src/PenguStore.sol";
 
-
 contract PenguStoreTest is Test {
     PenguStore public ps;
 
     address ownerAddr;
 
     address buyer1;
+    address buyer2;
+    address buyer3;
 
     address randomGuy;
 
@@ -23,12 +24,16 @@ contract PenguStoreTest is Test {
     function setUp() public {
         ownerAddr = address(3);
         buyer1 = address(2);
+        buyer2 = address(4);
+        buyer3 = address(5);
 
         vm.prank(buyer1);
         ps = new PenguStore(ownerAddr);
         vm.label(ownerAddr, "Owner Address");
 
         vm.deal(buyer1, 1 ether);
+        vm.deal(buyer2, 1 ether);
+        vm.deal(buyer3, 1 ether);
        
         vm.startPrank(ownerAddr);
         ps.setStock(STOCK);
@@ -72,28 +77,24 @@ contract PenguStoreTest is Test {
         ps.setStock(300);
     }
 
-
     function testPurchase() public {
         uint8 orderQty = 1;
       
         vm.prank(buyer1);
         ps.purchase{value: price }(orderQty, 'randomAddress');
 
-        (string memory shippingAddr,
-        uint256 quantity,
-        uint256 amount,
-        address buyerAddr,
-        bool isShipped,
-        bool cancelAndRefund) = ps.getOrderDetails(ps.orderNo() - 1);
+        PenguStore.Order memory order = ps.getOrderDetails(ps.orderNo() - 1);
 
-        assertEq(shippingAddr, 'randomAddress');
-        assertEq(quantity, orderQty);
-        assertEq(amount, price);
-        assertEq(buyerAddr, buyer1);
-        assertEq(shippingAddr, 'randomAddress');
-        assertEq(isShipped, false);
-        assertEq(cancelAndRefund, false);
-
+        assertEq(order.shippingAddr, 'randomAddress');
+        assertEq(order.quantity, orderQty);
+        assertEq(order.amount, price);
+        assertEq(order.buyerAddr, buyer1);
+        assertEq(order.shippingAddr, 'randomAddress');
+        assertEq(
+            uint256(order.status),
+            uint256(PenguStore.Status.pending)
+        );
+        
         assertEq(ps.payments(buyer1), price);
 
         uint32[] memory getOrders = ps.getOrder(buyer1);
@@ -112,21 +113,19 @@ contract PenguStoreTest is Test {
         vm.prank(buyer1);
         ps.purchase{value: orderAmount }(orderQty, 'randomAddress');
 
-        (string memory shippingAddr,
-        uint256 quantity,
-        uint256 amount,
-        address buyerAddr,
-        bool isShipped,
-        bool cancelAndRefund) = ps.getOrderDetails(ps.orderNo() - 1);
+        PenguStore.Order memory order = ps.getOrderDetails(ps.orderNo() - 1);
 
-        assertEq(shippingAddr, 'randomAddress');
-        assertEq(quantity, orderQty);
-        assertEq(amount, orderAmount);
-        assertEq(buyerAddr, buyer1);
-        assertEq(shippingAddr, 'randomAddress');
-        assertEq(isShipped, false);
-        assertEq(cancelAndRefund, false);
+        assertEq(order.shippingAddr, 'randomAddress');
+        assertEq(order.quantity, orderQty);
+        assertEq(order.amount, orderAmount);
+        assertEq(order.buyerAddr, buyer1);
+        assertEq(order.shippingAddr, 'randomAddress');
 
+        assertEq(
+            uint256(order.status),
+            uint256(PenguStore.Status.pending)
+        );
+        
         assertEq(ps.payments(buyer1), orderAmount);
 
         uint32[] memory getOrders = ps.getOrder(buyer1);
@@ -168,12 +167,15 @@ contract PenguStoreTest is Test {
         vm.prank(ownerAddr);
         ps.processShipment(0);
 
-        (,,,,bool isShipped,) = ps.getOrderDetails(0);
-        assertEq(isShipped, true);
-
+        PenguStore.Order memory order = ps.getOrderDetails(0);
+        assertEq(
+            uint256(order.status),
+            uint256(PenguStore.Status.shipped)
+        );
+        
         assertEq(ps.amountAfterShipping(), price);
     }
-
+    
     function testProcessShipmentFail_AlreadyShipped() public {
         vm.prank(buyer1);
         ps.purchase{value: price }(1, 'randomAddress');
@@ -281,7 +283,6 @@ contract PenguStoreTest is Test {
         ps.setCancelAndRefund(orderNo);
     }
 
-
      function testSetCancelAndRefundFail_AlreadyShipped() public {
         vm.prank(buyer1);
         ps.purchase{value: price }(1, 'randomAddress');
@@ -299,11 +300,28 @@ contract PenguStoreTest is Test {
         ps.setCancelAndRefund(orderNo);
     }
 
-    
+    function testSetCancelAndRefund_Loop() public {
+        vm.prank(buyer1);
+        ps.purchase{value: price }(1, 'randomAddress');
 
+        vm.prank(address(4));
+        ps.purchase{value: price }(1, 'randomAddress');
 
+        vm.prank(address(5));
+        ps.purchase{value: price }(1, 'randomAddress');
+
+        uint32[] memory orders = new uint32[](3);
+        orders[0] = 0;
+        orders[1] = 1;
+        orders[2] = 2;
+       
+        for(uint8 i=0; i<3; i++) {
+            vm.prank(ownerAddr);
+            ps.setCancelAndRefund(i);
+            PenguStore.Order memory order = ps.getOrderDetails(i);
+            assertEq(order.cancelAndRefund, true);
+        }
+    }
 }
-
-
 
 //    error OwnableInvalidOwner(address owner);
