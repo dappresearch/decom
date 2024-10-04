@@ -23,6 +23,12 @@ contract PenguStore is Ownable {
 
     error AlreadyCancelled(uint32 orderNo);
 
+    error InvalidCollector(address buyer);
+
+    error OrderNotCancelled(uint32 orderNo);
+
+    error AlreadyRefund(uint32 orderNo);
+
     // no of stock availale for sale
     uint32 public totalStock;
 
@@ -174,41 +180,40 @@ contract PenguStore is Ownable {
         }
     }
 
-    // // Think something about order Number
-    // // It needs reentrance guard
-    // function collectRefund(uint32 _orderNo) external {
-    //     Order memory order = orders[_orderNo];
+    // Think something about order Number
+    // It needs reentrance guard
+    function collectRefund(uint32 _orderNo) external {
+        Order memory order = orders[_orderNo];
+    
+        if(msg.sender != order.buyerAddr) revert InvalidCollector(msg.sender);
 
-    //     // buyer shoule be caller
-    //     require(msg.sender == order.buyerAddr, "Caller should be buyer");
+        if (order.status == Status.shipped) revert AlreadyShipped(_orderNo);
 
-    //     // order should not be shipped
-    //     // orderNumber should be to set to cancelAndRefund
-    //     require(!order.isShipped && order.cancelAndRefund, "Invalid refund");
+        if(order.status != Status.cancelled) revert OrderNotCancelled(_orderNo);
 
-    //     // must have valid payment
-    //     // totalPayment is not necessary important here
-    //     require(
-    //         payments[msg.sender] >= order.amount &&
-    //             totalPayment >= order.amount,
-    //         "Incorrect payment request"
-    //     );
+        if(order.status == Status.refund) revert AlreadyRefund(_orderNo);
+    
+        if (order.amount == 0 || payments[order.buyerAddr] > order.amount)
+            revert InsufficientBuyerPayment(_orderNo);
+            
+        uint256 refundAmount = order.amount;
 
-    //     uint256 amount = order.amount;
+        unchecked {
+            totalPayment -= order.amount;
+            payments[msg.sender] -= order.amount;
+        }
 
-    //     unchecked {
-    //         totalPayment -= order.amount;
-    //         payments[msg.sender] -= order.amount;
-    //     }
+        order.amount = 0;
 
-    //     order.amount = 0;
+        order.status = Status.refund;
 
-    //     //delete order
-    //     delete orders[_orderNo];
+        // //delete order
+        // delete orders[_orderNo];
 
-    //     // remove the payment
-    //     payable(msg.sender).transfer(amount);
-    // }
+        // remove the payment
+        payable(msg.sender).transfer(refundAmount);
+        
+    }
 
     // Returns the orde array
     function getOrder(address buyer) external view returns (uint32[] memory) {

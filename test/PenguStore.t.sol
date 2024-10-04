@@ -319,9 +319,18 @@ contract PenguStoreTest is Test {
             vm.prank(ownerAddr);
             ps.setCancelAndRefund(i);
             PenguStore.Order memory order = ps.getOrderDetails(i);
-            assertEq(order.cancelAndRefund, true);
+            assertEq(
+            uint256(order.status),
+            uint256(PenguStore.Status.cancelled)
+        );
         }
     }
+
+
+    
+
+
+
 }
 
 //    error OwnableInvalidOwner(address owner);
