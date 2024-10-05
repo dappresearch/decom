@@ -368,6 +368,26 @@ contract PenguStoreTest is Test {
         ps.collectRefund(orderNo);
     }
 
+    function testCollectRefund_InsufficientBuyerPayment() public {
+        vm.prank(buyer1);
+        ps.purchase{value: price *  6 }(6, 'randomAddress');
+
+        uint32 orderNo = ps.buyersOrder(buyer1, 0);
+
+        vm.prank(ownerAddr);
+        ps.setCancelAndRefund(orderNo);
+
+        vm.prank(buyer1);
+        ps.collectRefund(orderNo);
+        
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PenguStore.InsufficientBuyerPayment.selector, orderNo)
+        );
+        vm.prank(buyer1);
+        ps.collectRefund(orderNo);
+    }
+
     function testCollectRefund_AlreadyShipped() public {
         vm.prank(buyer1);
         ps.purchase{value: price *  9 }(9, 'randomAddress');
@@ -398,7 +418,6 @@ contract PenguStoreTest is Test {
         vm.prank(buyer1);
         ps.collectRefund(orderNo);
     }
-
 }
 
 //    error OwnableInvalidOwner(address owner);

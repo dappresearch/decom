@@ -158,6 +158,8 @@ contract PenguStore is Ownable {
 
         if (order.status == Status.shipped) revert AlreadyShipped(_orderNo);
 
+        if(order.status == Status.refund) revert AlreadyRefund(_orderNo);
+
         if (order.status == Status.cancelled) revert AlreadyCancelled(_orderNo);
 
         if (order.amount == 0 || payments[order.buyerAddr] > order.amount)
@@ -173,6 +175,8 @@ contract PenguStore is Ownable {
         for (uint8 i = 0; i < _ordersNo.length; i++) {
             Order storage order = orders[_ordersNo[i]];
                 if (order.status == Status.shipped) revert AlreadyShipped(i);
+                if(order.status == Status.refund) revert AlreadyRefund(i);
+                if (order.status == Status.cancelled) revert AlreadyCancelled(i);
 
             if (order.amount == 0 || payments[order.buyerAddr] > order.amount)
                 revert InsufficientBuyerPayment(i);
@@ -184,18 +188,16 @@ contract PenguStore is Ownable {
     // It needs reentrance guard
     function collectRefund(uint32 _orderNo) external {
         Order storage order = orders[_orderNo];
-    
+
         if(msg.sender != order.buyerAddr) revert InvalidCollector(msg.sender);
 
+        if (order.amount == 0 || payments[order.buyerAddr] > order.amount)
+            revert InsufficientBuyerPayment(_orderNo);
+            
         if (order.status == Status.shipped) revert AlreadyShipped(_orderNo);
 
         if(order.status != Status.cancelled) revert OrderNotCancelled(_orderNo);
 
-        if(order.status == Status.refund) revert AlreadyRefund(_orderNo);
-    
-        if (order.amount == 0 || payments[order.buyerAddr] > order.amount)
-            revert InsufficientBuyerPayment(_orderNo);
-            
         uint256 refundAmount = order.amount;
 
         unchecked {
