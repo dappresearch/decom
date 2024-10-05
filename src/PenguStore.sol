@@ -183,7 +183,7 @@ contract PenguStore is Ownable {
     // Think something about order Number
     // It needs reentrance guard
     function collectRefund(uint32 _orderNo) external {
-        Order memory order = orders[_orderNo];
+        Order storage order = orders[_orderNo];
     
         if(msg.sender != order.buyerAddr) revert InvalidCollector(msg.sender);
 
@@ -204,15 +204,9 @@ contract PenguStore is Ownable {
         }
 
         order.amount = 0;
-
         order.status = Status.refund;
-
-        // //delete order
-        // delete orders[_orderNo];
-
-        // remove the payment
-        payable(msg.sender).transfer(refundAmount);
         
+        payable(msg.sender).transfer(refundAmount);
     }
 
     // Returns the orde array

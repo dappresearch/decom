@@ -326,10 +326,78 @@ contract PenguStoreTest is Test {
         }
     }
 
+    function testCollectRefund() public {
+        vm.prank(buyer1);
+        ps.purchase{value: price * 30 }(30, 'randomAddress');
 
-    
+        uint32 orderNo = ps.buyersOrder(buyer1, 0);
 
+        vm.prank(ownerAddr);
+        ps.setCancelAndRefund(orderNo);
 
+        vm.prank(buyer1);
+        ps.collectRefund(orderNo);
+
+        console.log("OrderNo: %s", orderNo);
+
+        PenguStore.Order memory order = ps.getOrderDetails(orderNo);
+
+        assertEq(ps.payments(buyer1), 0);
+        assertEq(order.amount, 0); 
+        assertEq(ps.totalPayment(), 0); 
+        assertEq(
+            uint256(order.status),
+            uint256(PenguStore.Status.refund)
+        );
+    }
+
+    function testCollectRefund_invalidCollector() public {
+        vm.prank(buyer1);
+        ps.purchase{value: price *  9 }(9, 'randomAddress');
+
+        uint32 orderNo = ps.buyersOrder(buyer1, 0);
+
+        vm.prank(ownerAddr);
+        ps.setCancelAndRefund(orderNo);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PenguStore.InvalidCollector.selector, buyer3)
+        );
+        vm.prank(buyer3);
+        ps.collectRefund(orderNo);
+    }
+
+    function testCollectRefund_AlreadyShipped() public {
+        vm.prank(buyer1);
+        ps.purchase{value: price *  9 }(9, 'randomAddress');
+
+        uint32 orderNo = ps.buyersOrder(buyer1, 0);
+
+        vm.prank(ownerAddr);
+        ps.processShipment(orderNo);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PenguStore.AlreadyShipped.selector, orderNo)
+        );
+        vm.prank(buyer1);
+        ps.collectRefund(orderNo);
+    }
+
+    function testCollectRefund_OrderedNotCancelled() public {
+        vm.prank(buyer1);
+        ps.purchase{value: price *  9 }(9, 'randomAddress');
+
+        uint32 orderNo = ps.buyersOrder(buyer1, 0);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PenguStore.OrderNotCancelled.selector, orderNo)
+        );
+        vm.prank(buyer1);
+        ps.collectRefund(orderNo);
+    }
 
 }
 
