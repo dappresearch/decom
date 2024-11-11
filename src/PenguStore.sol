@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "forge-std/console.sol";
 
 // Need to figure out what to sell
 // This is important
 
-// Shippin cost for the cap
+// Shipping cost for the cap
 
 // When to use calldata vs memory
 contract PenguStore is Ownable {
@@ -29,7 +31,7 @@ contract PenguStore is Ownable {
 
     error AlreadyRefund(uint32 orderNo);
 
-    // no of stock availale for sale
+    // No of total stock available for sale
     uint32 public totalStock;
 
     // track number of orders
@@ -46,7 +48,7 @@ contract PenguStore is Ownable {
 
     // revenue generted after fulfilling shipping
     uint256 public amountAfterShipping;
-
+    
     enum Status {
         pending,
         shipped,
@@ -64,31 +66,52 @@ contract PenguStore is Ownable {
         Status status;
     }
 
-    // store buyer orders
+    // Store the buyers order
     mapping(address => uint32[]) public buyersOrder;
 
+    // Store the order details with respective order number.
     mapping(uint32 => Order) orders;
 
+    // Record the buyer purchase payments.
     mapping(address => uint256) public payments;
 
+    /**
+     * @notice Sets the total stock available for sale.
+     * @param newTotalStock Available stock for sale.
+     */
     function setStock(uint32 newTotalStock) external onlyOwner {
         totalStock = newTotalStock;
     }
 
+    /**
+     * @notice Sets the price of the item. 
+     * @param newPrice Price of the item.
+     */
     function setPrice(uint256 newPrice) external onlyOwner {
         price = newPrice;
     }
 
+    /**
+     * @notice Set the price of the shipping cost.
+     * @param newShippingCost Current shipping cost.
+     */
     function setShippingCost(uint256 newShippingCost) external onlyOwner {
         shippingCost = newShippingCost;
     }
 
-    // need to properly calculate shipping cost
+    /**
+    * @notice Returns the total cost including shipping for the given quantity.
+    * @param quantity The number of items to be shipped.
+    * @return The total cost including the price of items and shipping cost.
+    */
     function totalCost(uint32 quantity) public view returns (uint256) {
         return ((price * quantity) + shippingCost);
     }
 
-    // Need to figure out accurate cost of the shipping
+    /**
+     * @notice Purchase the given item buy sending ether.
+     * @param newShippingCost Current shipping cost.
+     */
     function purchase(
         uint32 quantity,
         string memory destination
@@ -108,6 +131,8 @@ contract PenguStore is Ownable {
 
         // Record the payment sent by the buyers.
         payments[msg.sender] += amount;
+        
+        // Buyer can have multiple orders.
         buyersOrder[msg.sender].push(orderNo);
 
         // overflow not possible, totalStock > stock, already checked.
@@ -119,11 +144,14 @@ contract PenguStore is Ownable {
         }
     }
 
-    //Need to track the buyer balance
     function processShipment(uint32 _orderNo) external onlyOwner {
         Order storage order = orders[_orderNo];
 
+        // Order should not be shipped.
         if (order.status == Status.shipped) revert AlreadyShipped(_orderNo);
+
+        // Buyer should have sufficient balance in the contract.
+        if(payments[order.buyerAddr] < order.amount) revert InsufficientBuyerPayment(_orderNo);
 
         order.status = Status.shipped;
 
@@ -132,9 +160,6 @@ contract PenguStore is Ownable {
         }
     }
 
-    // Need to process multiple payment
-    // This is important.
-    // Only able to withdraw for shipped items
     function withdraw() external onlyOwner {
         uint256 withdrawAmount = amountAfterShipping;
 
@@ -184,8 +209,7 @@ contract PenguStore is Ownable {
         }
     }
 
-    // Think something about order Number
-    // It needs reentrance guard
+    // Reentrance guard is needed
     function collectRefund(uint32 _orderNo) external {
         Order storage order = orders[_orderNo];
 
