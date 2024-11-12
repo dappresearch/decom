@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
-
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "forge-std/console.sol";
+
+import {PriceFeedV3} from "./PriceFeedV3.sol";
 
 // Need to figure out what to sell
 // This is important
@@ -108,10 +108,6 @@ contract PenguStore is Ownable {
         return ((price * quantity) + shippingCost);
     }
 
-    /**
-     * @notice Purchase the given item buy sending ether.
-     * @param newShippingCost Current shipping cost.
-     */
     function purchase(
         uint32 quantity,
         string memory destination

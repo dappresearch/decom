@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.7;
 
-import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+import "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+
 
 /**
  * THIS IS AN EXAMPLE CONTRACT THAT USES HARDCODED
@@ -19,8 +20,8 @@ import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interf
  * page for details.
  */
  
-contract DataConsumerV3 {
-    AggregatorV3Interface internal dataFeed;
+contract PriceFeedV3 {
+    AggregatorV3Interface internal immutable dataFeed;
     //Need to calculate
 
     /**
@@ -56,8 +57,8 @@ contract DataConsumerV3 {
             to 10^8, 
             10^26 = 10^8 + 10^18(Base Wei) 
         */
-        uint amountToWei = ( (amount * (10**26))/uint(price) );
+        uint weiValue = ( (amount * (10**26))/uint(price) );
 
-        return amountToWei;
+        return weiValue;
     }
 }
