@@ -28,7 +28,7 @@ contract PenguStoreTest is Test {
         buyer3 = address(5);
 
         vm.prank(buyer1);
-        ps = new PenguStore(ownerAddr);
+        ps = new PenguStore(ownerAddr, address(0));
         vm.label(ownerAddr, "Owner Address");
 
         vm.deal(buyer1, 1 ether);

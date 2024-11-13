@@ -56,7 +56,11 @@ contract PenguStore is Ownable {
         refund
     }
 
-    constructor(address owner) Ownable(owner) {}
+    PriceFeedV3 priceFeed;
+
+    constructor(address owner, address chainLinkOracle) Ownable(owner) {
+        priceFeed = new PriceFeedV3(chainLinkOracle);
+    }
 
     struct Order {
         string shippingAddr;
@@ -100,7 +104,7 @@ contract PenguStore is Ownable {
     function setShippingCost(uint256 newShippingCost) external onlyOwner {
         shippingCost = newShippingCost;
     }
-    
+
     /**
     * @notice Returns the total cost including shipping for the given quantity.
     * @dev Item price and shipping cost is converted to Wei using chainlink ETH/USD price feed.
@@ -110,10 +114,10 @@ contract PenguStore is Ownable {
     function totalCost(uint32 quantity) public view returns (uint256) {
 
         // Convert item price into current ETH/USD market price in wei.
-        uint256 priceInWei = (amountToWei(price)) * quantity;
+        uint256 priceInWei = (priceFeed.amountToWei(price)) * quantity;
 
         // Convert shipping cost into current ETH/USD market price in wei.
-        uint256 shippingCostInWei = amountToWie(shippingCost);
+        uint256 shippingCostInWei = priceFeed.amountToWei(shippingCost);
 
         // Total cost in wei.
         return (priceInWei + shippingCostInWei);
