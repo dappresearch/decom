@@ -38,7 +38,7 @@ contract PriceFeedV3 {
     /**
      * Returns the latest answer.
      */
-    function getChainlinkDataFeedLatestAnswer() public view returns (int) {
+    function getChainlinkDataFeedLatestAnswer() internal view returns (int) {
         // prettier-ignore
         (
             /* uint80 roundID */,
@@ -50,7 +50,7 @@ contract PriceFeedV3 {
         return answer;
     }
     
-    function amountToWei(uint256 amount) public view returns (uint256) {
+    function amountToWei(uint256 amount) internal view returns (uint256) {
         int256 price = getChainlinkDataFeedLatestAnswer();    
         /**
             Price is aritifically inflated to 10^8, so parameter amount is also inflated
