@@ -112,22 +112,14 @@ contract PenguStore is Ownable {
     * @return The total cost including the price of items and shipping cost.
     */
     function totalCost(uint32 quantity) public view returns (uint256) {
-        console.log('inside totalCost');
-        uint data = priceFeed.amountToWei(1);
-        console.log("Price feed Addresssssssss", data);
+        // Convert item price into current ETH/USD market price in wei.
+        uint256 priceInWei = (priceFeed.amountToWei(price)) * quantity;
 
-        return(uint(data));
+        // Convert shipping cost into current ETH/USD market price in wei.
+        uint256 shippingCostInWei = priceFeed.amountToWei(shippingCost);
 
-        // // Convert item price into current ETH/USD market price in wei.
-        // uint256 priceInWei = (priceFeed.amountToWei(price)) * quantity;
-
-        // uint256 priceInWei = priceFeed.amountToWei(2);
-
-        // // Convert shipping cost into current ETH/USD market price in wei.
-        // uint256 shippingCostInWei = priceFeed.amountToWei(shippingCost);
-
-        // // Total cost in wei.
-        // return (priceInWei + shippingCostInWei);
+        // Total cost in wei.
+        return (priceInWei + shippingCostInWei);
     }
 
     function purchase(
@@ -137,8 +129,11 @@ contract PenguStore is Ownable {
         if (quantity == 0 || quantity > totalStock)
             revert InvalidQuantity(quantity);
 
+        uint256 totalCostInWei = totalCost(quantity);
+
+
         // Buyer purchase amount should match the item price.
-        if (msg.value != totalCost(quantity)) revert InvalidAmount(msg.value);
+        if (msg.value != totalCostInWei) revert InvalidAmount(msg.value);
 
         uint256 amount = msg.value;
         Order storage order = orders[orderNo];
@@ -147,13 +142,7 @@ contract PenguStore is Ownable {
         order.amount = amount;
         order.buyerAddr = msg.sender;
         order.status = Status.pending;
-
-        // Record the payment sent by the buyers.
-        payments[msg.sender] += amount;
         
-        // Buyer can have multiple orders.
-        buyersOrder[msg.sender].push(orderNo);
-
         // Record the payment sent by the buyers.
         payments[msg.sender] += amount;
         

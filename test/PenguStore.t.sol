@@ -2,13 +2,15 @@
 pragma solidity ^0.8.20;
 
 import {Test, console} from "forge-std/Test.sol";
-import {PenguStore} from "../src/PenguStore.sol";
+import {PenguStore, Ownable, PriceFeedV3} from "../src/PenguStore.sol";
 import {MockAggregratorV3Interface} from "../src/MockAggregratorV3Interface.sol";
 
 contract PenguStoreTest is Test {
     PenguStore public ps;
 
     MockAggregratorV3Interface public mockOracle;
+
+    PriceFeedV3 public priceFeed;
 
     address ownerAddr;
 
@@ -20,7 +22,9 @@ contract PenguStoreTest is Test {
 
     uint16 constant STOCK = 300;
 
-    uint256 price = 15;
+    uint8 price = 15;
+
+    uint8 shippingCost = 11;
 
     function setUp() public {
         ownerAddr = address(3);
@@ -31,6 +35,8 @@ contract PenguStoreTest is Test {
         vm.prank(buyer1);
 
         mockOracle = new MockAggregratorV3Interface();
+        
+        priceFeed = new PriceFeedV3(address(mockOracle));
 
         ps = new PenguStore(ownerAddr, address(mockOracle));
         
@@ -43,6 +49,7 @@ contract PenguStoreTest is Test {
         vm.startPrank(ownerAddr);
         ps.setStock(STOCK);
         ps.setPrice(price);
+        ps.setShippingCost(shippingCost);
         vm.stopPrank();
     }
     
@@ -64,57 +71,90 @@ contract PenguStoreTest is Test {
         ps.setStock(300);
     }
 
-    // function testSetPrice() public  {
-    //     vm.prank(ownerAddr);
-    //     ps.setPrice(300);
-    //     assertEq(ps.price(), 300);
-    // }
+    function testSetPrice() public  {
+        vm.prank(ownerAddr);
+        ps.setPrice(300);
+        assertEq(ps.price(), 300);
+    }
 
-    // function testSetPrice_Fail_onlyOwner() public {
-    //      // Ownable contract is from openzeppelin
-    //      vm.expectRevert(
-    //         abi.encodeWithSelector(
-    //             Ownable.OwnableUnauthorizedAccount.selector,
-    //             buyer1
-    //         )
-    //     );
-    //     vm.prank(buyer1);
-    //     ps.setStock(300);
-    // }
+    function testSetPrice_Fail_onlyOwner() public {
+         // Ownable contract is from openzeppelin
+         vm.expectRevert(
+            abi.encodeWithSelector(
+                Ownable.OwnableUnauthorizedAccount.selector,
+                buyer1
+            )
+        );
+        vm.prank(buyer1);
+        ps.setStock(300);
+    }
 
-    // function testPurchase() public {
-        // uint8 orderQty = 1;
-        // vm.prank(buyer1);
+    function testSetShippingCost() public  {
+        uint8 newShippingCost = 15;
+        vm.prank(ownerAddr);
+        ps.setShippingCost(newShippingCost);
+        assertEq(ps.shippingCost(), newShippingCost);
+    }
 
-        // console.log(mpf.amountToWei(1));
+    function testShippingCost_Fail_onlyOwner() public {
+         // Ownable contract is from openzeppelin
+         vm.expectRevert(
+            abi.encodeWithSelector(
+                Ownable.OwnableUnauthorizedAccount.selector,
+                buyer1
+            )
+        );
+        vm.prank(buyer1);
+        ps.setShippingCost(300);
+    }
 
-        // uint totalCostData = ps.totalCost(orderQty);
+    function testPriceFeedV3_amountToWei() public view {
+        uint256 expectedWeiValue1 = 10937500000000000;
+        uint256 expectedWeiValue2 = 3437500000000000;
 
-        // assertEq(totalCostData, 1000000);
+        assertEq(expectedWeiValue1, priceFeed.amountToWei(35));
+        assertEq(expectedWeiValue2, priceFeed.amountToWei(11));
+    }
 
-        // ps.purchase{value: price }(orderQty, 'randomAddress');
+    function testTotalCost() public {
+        uint256 totalCostInWei = 8125000000000000;
+        uint256 totalCost = ps.totalCost(1);
+        assertEq(totalCost, totalCostInWei);
 
-        // PenguStore.Order memory order = ps.getOrderDetails(ps.orderNo() - 1);
+        totalCostInWei = 26875000000000000;
+        totalCost = ps.totalCost(5);
+        assertEq(totalCost, totalCostInWei);
+    }
+    
+    function testPurchase() public {
+        uint8 orderQty = 1;
+        // Get the purchase amount in Wei.
+        uint purchaseAmount = ps.totalCost(orderQty);
 
-        // assertEq(order.shippingAddr, 'randomAddress');
-        // assertEq(order.quantity, orderQty);
-        // assertEq(order.amount, price);
-        // assertEq(order.buyerAddr, buyer1);
-        // assertEq(order.shippingAddr, 'randomAddress');
-        // assertEq(
-        //     uint256(order.status),
-        //     uint256(PenguStore.Status.pending)
-        // );
-        
-        // assertEq(ps.payments(buyer1), price);
+        vm.prank(buyer1);
+        ps.purchase{value: purchaseAmount }(orderQty, 'randomAddress');
 
-        // uint32[] memory getOrders = ps.getOrder(buyer1);
-        // assertEq(getOrders.length, 1);
+        PenguStore.Order memory order = ps.getOrderDetails(ps.orderNo() - 1);
 
-        // assertEq(ps.totalPayment(), price);
-        // assertEq(ps.totalStock(), STOCK - orderQty);
-        // assertEq(ps.orderNo(), 1);
-    // }
+        assertEq(order.shippingAddr, 'randomAddress', 'Incorrect shipping address');
+        assertEq(order.quantity, orderQty, 'Incorrect order quantity');
+        assertEq(order.amount, purchaseAmount, 'Incorrect order amount');
+        assertEq(order.buyerAddr, buyer1, 'Incorrect buyer address');
+        assertEq(order.shippingAddr, 'randomAddress', 'Incorrect shipping address');
+        assertEq(
+            uint256(order.status),
+            uint256(PenguStore.Status.pending),
+            'Incorrect order status'
+        );
+        assertEq(ps.payments(buyer1), purchaseAmount, 'Incorrect payment');
+
+        uint32[] memory getOrders = ps.getOrder(buyer1);
+        assertEq(getOrders.length, 1, 'Incorrect order length');
+
+        assertEq(ps.totalPayment(), purchaseAmount, 'Incorrect total payment');
+        assertEq(ps.totalStock(), STOCK - orderQty, 'Incorrect total stock');
+        assertEq(ps.orderNo(), 1, 'Incorret order No');
+    }
 
     // function testPurchase_MultipleOrder() public {
     //     uint8 orderQty = 59;
