@@ -2,7 +2,7 @@
 pragma solidity ^0.8.7;
 
 import "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
-
+import "forge-std/console.sol";
 
 /**
  * THIS IS AN EXAMPLE CONTRACT THAT USES HARDCODED
@@ -34,7 +34,7 @@ contract PriceFeedV3 {
             ethUsdPairAddress
         );
     }
-
+    
     /**
      * Returns the latest answer.
      */
@@ -47,18 +47,23 @@ contract PriceFeedV3 {
             /*uint timeStamp*/,
             /*uint80 answeredInRound*/
         ) = DATAFEED.latestRoundData();
+
+        console.log('returning data');
         return answer;
     }
     
     function amountToWei(uint256 amount) public view returns (uint256) {
+        console.log("inside amout to Wei");
+
         int256 price = getChainlinkDataFeedLatestAnswer();    
+
+        console.log("Get Price", price);
         /**
             Price is aritifically inflated to 10^8, so parameter amount is also inflated
             to 10^8, 
             10^26 = 10^8 + 10^18(Base Wei) 
-        */
-        uint256 weiValue = ( (amount * (10**26))/uint(price) );
-
-        return weiValue;
+        // */
+        // uint256 weiValue = ( (amount * (10**26))/uint(price) );
+        return uint(price);
     }
 }

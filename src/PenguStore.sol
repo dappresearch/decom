@@ -56,7 +56,7 @@ contract PenguStore is Ownable {
         refund
     }
 
-    PriceFeedV3 priceFeed;
+    PriceFeedV3 public priceFeed;
 
     constructor(address owner, address chainLinkOracle) Ownable(owner) {
         priceFeed = new PriceFeedV3(chainLinkOracle);
@@ -112,15 +112,22 @@ contract PenguStore is Ownable {
     * @return The total cost including the price of items and shipping cost.
     */
     function totalCost(uint32 quantity) public view returns (uint256) {
+        console.log('inside totalCost');
+        uint data = priceFeed.amountToWei(1);
+        console.log("Price feed Addresssssssss", data);
 
-        // Convert item price into current ETH/USD market price in wei.
-        uint256 priceInWei = (priceFeed.amountToWei(price)) * quantity;
+        return(uint(data));
 
-        // Convert shipping cost into current ETH/USD market price in wei.
-        uint256 shippingCostInWei = priceFeed.amountToWei(shippingCost);
+        // // Convert item price into current ETH/USD market price in wei.
+        // uint256 priceInWei = (priceFeed.amountToWei(price)) * quantity;
 
-        // Total cost in wei.
-        return (priceInWei + shippingCostInWei);
+        // uint256 priceInWei = priceFeed.amountToWei(2);
+
+        // // Convert shipping cost into current ETH/USD market price in wei.
+        // uint256 shippingCostInWei = priceFeed.amountToWei(shippingCost);
+
+        // // Total cost in wei.
+        // return (priceInWei + shippingCostInWei);
     }
 
     function purchase(
@@ -130,6 +137,7 @@ contract PenguStore is Ownable {
         if (quantity == 0 || quantity > totalStock)
             revert InvalidQuantity(quantity);
 
+        // Buyer purchase amount should match the item price.
         if (msg.value != totalCost(quantity)) revert InvalidAmount(msg.value);
 
         uint256 amount = msg.value;
