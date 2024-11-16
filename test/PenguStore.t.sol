@@ -22,9 +22,15 @@ contract PenguStoreTest is Test {
 
     uint16 constant STOCK = 300;
 
+    // Single item price.
     uint8 price = 15;
 
     uint8 shippingCost = 11;
+
+    // (Price + Shipping cost) for quanity 1, convert into wei
+    // $15 + $11 = $26, calculated at the eth price of $3200
+    // see method `totalStock` and contract `MockAggregratorV3Interface`.
+    uint256 totalPrice = 8125000000000000;
 
     function setUp() public {
         ownerAddr = address(3);
@@ -51,6 +57,16 @@ contract PenguStoreTest is Test {
         ps.setPrice(price);
         ps.setShippingCost(shippingCost);
         vm.stopPrank();
+    }
+
+    function testTotalCost() public view {
+        uint256 totalCostInWei = 8125000000000000;
+        uint256 totalCost = ps.totalCost(1);
+        assertEq(totalCost, totalCostInWei);
+
+        totalCostInWei = 26875000000000000;
+        totalCost = ps.totalCost(5);
+        assertEq(totalCost, totalCostInWei);
     }
     
     function testSetStock() public  {
@@ -116,15 +132,6 @@ contract PenguStoreTest is Test {
         assertEq(expectedWeiValue2, priceFeed.amountToWei(11));
     }
 
-    function testTotalCost() public {
-        uint256 totalCostInWei = 8125000000000000;
-        uint256 totalCost = ps.totalCost(1);
-        assertEq(totalCost, totalCostInWei);
-
-        totalCostInWei = 26875000000000000;
-        totalCost = ps.totalCost(5);
-        assertEq(totalCost, totalCostInWei);
-    }
     
     function testPurchase() public {
         uint8 orderQty = 1;
@@ -156,319 +163,289 @@ contract PenguStoreTest is Test {
         assertEq(ps.orderNo(), 1, 'Incorret order No');
     }
 
-    // function testPurchase_MultipleOrder() public {
-    //     uint8 orderQty = 59;
+    function testPurchase_InvalidQuantity() public {
+         uint16 orderStock = 301;
+         vm.expectRevert(
+            abi.encodeWithSelector(
+                PenguStore.InvalidQuantity.selector,
+                orderStock
+            )
+        );
+        vm.prank(buyer1);
+        ps.purchase(orderStock, "randomAddress");
+    }
 
-    //     uint256 orderAmount = orderQty * price;
+    function testPurchase_InvalidAmount() public {
+         uint8 orderPrice = 1 wei ;
+         vm.expectRevert(
+            abi.encodeWithSelector(
+                PenguStore.InvalidAmount.selector,
+                orderPrice
+            )
+        );
 
-    //     vm.prank(buyer1);
-    //     ps.purchase{value: orderAmount }(orderQty, 'randomAddress');
+        ps.purchase{value: orderPrice }(2, "randomAddress");
+    }
 
-    //     PenguStore.Order memory order = ps.getOrderDetails(ps.orderNo() - 1);
+    function testProcessShipment() public {
+        // Purchase
+        vm.prank(buyer1);
+        ps.purchase{value: totalPrice }(1, 'randomAddress');
 
-    //     assertEq(order.shippingAddr, 'randomAddress');
-    //     assertEq(order.quantity, orderQty);
-    //     assertEq(order.amount, orderAmount);
-    //     assertEq(order.buyerAddr, buyer1);
-    //     assertEq(order.shippingAddr, 'randomAddress');
+        // Process shipment after receiving the order.
+        vm.prank(ownerAddr);
+        ps.processShipment(0);
 
-    //     assertEq(
-    //         uint256(order.status),
-    //         uint256(PenguStore.Status.pending)
-    //     );
+        // Check order status.
+        PenguStore.Order memory order = ps.getOrderDetails(0);
+        assertEq(
+            uint256(order.status),
+            uint256(PenguStore.Status.shipped),
+            'Invalid order status'
+        );
         
-    //     assertEq(ps.payments(buyer1), orderAmount);
-
-    //     uint32[] memory getOrders = ps.getOrder(buyer1);
-    //     assertEq(getOrders.length, 1);
-
-    //     assertEq(ps.totalPayment(), orderAmount);
-    //     assertEq(ps.totalStock(), STOCK - orderQty);
-    //     assertEq(ps.orderNo(), 1);
-    // }
+        assertEq(ps.amountAfterShipping(), totalPrice, 'Invalid amount after shipping');
+    }
     
-    // function testPurchase_InvalidQuantity() public {
-    //      uint16 orderStock = 301;
-    //      vm.expectRevert(
-    //         abi.encodeWithSelector(
-    //             PenguStore.InvalidQuantity.selector,
-    //             orderStock
-    //         )
-    //     );
-    //     vm.prank(buyer1);
-    //     ps.purchase(orderStock, "randomAddress");
-    // }
+    function testProcessShipmentFail_AlreadyShipped() public {
+        vm.prank(buyer1);
+        ps.purchase{value: totalPrice}(1, 'randomAddress');
 
-    // function testPurchase_InvalidAmount() public {
-    //      uint8 orderPrice = 1 wei ;
-    //      vm.expectRevert(
-    //         abi.encodeWithSelector(
-    //             PenguStore.InvalidAmount.selector,
-    //             orderPrice
-    //         )
-    //     );
+        vm.prank(ownerAddr);
+        ps.processShipment(0);
 
-    //     ps.purchase{value: orderPrice }(2, "randomAddress");
-    // }
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PenguStore.AlreadyShipped.selector,
+                0
+            )
+        );
+        vm.prank(ownerAddr);
+        ps.processShipment(0);
+    }
 
-    // function testProcessShipment() public {
-    //     vm.prank(buyer1);
-    //     ps.purchase{value: price }(1, 'randomAddress');
+     function testProcessShipmentFail_OnlyOwner() public {
+        vm.prank(buyer1);
+        ps.purchase{value: totalPrice }(1, 'randomAddress');
 
-    //     vm.prank(ownerAddr);
-    //     ps.processShipment(0);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Ownable.OwnableUnauthorizedAccount.selector,
+                buyer1
+            )
+        );
+        vm.prank(buyer1);
+        ps.processShipment(0);
+    }
 
-    //     PenguStore.Order memory order = ps.getOrderDetails(0);
-    //     assertEq(
-    //         uint256(order.status),
-    //         uint256(PenguStore.Status.shipped)
-    //     );
+    function testWithdraw() public {
+        vm.prank(address(2));
+        ps.purchase{value: totalPrice }(1, 'randomAddress');
+
+        vm.prank(ownerAddr);
+        ps.processShipment(0);
         
-    //     assertEq(ps.amountAfterShipping(), price);
-    // }
-    
-    // function testProcessShipmentFail_AlreadyShipped() public {
-    //     vm.prank(buyer1);
-    //     ps.purchase{value: price }(1, 'randomAddress');
+        vm.prank(ownerAddr);
+        ps.withdraw();
 
-    //     vm.prank(ownerAddr);
-    //     ps.processShipment(0);
+        assertEq(ps.amountAfterShipping(), 0);
+    }
 
-    //     vm.expectRevert(
-    //         abi.encodeWithSelector(
-    //             PenguStore.AlreadyShipped.selector,
-    //             0
-    //         )
-    //     );
-    //     vm.prank(ownerAddr);
-    //     ps.processShipment(0);
-    // }
-
-    //  function testProcessShipmentFail_OnlyOwner() public {
-    //     vm.prank(buyer1);
-    //     ps.purchase{value: price }(1, 'randomAddress');
-
-    //     vm.expectRevert(
-    //         abi.encodeWithSelector(
-    //             Ownable.OwnableUnauthorizedAccount.selector,
-    //             buyer1
-    //         )
-    //     );
-    //     vm.prank(buyer1);
-    //     ps.processShipment(0);
-    // }
-
-    // function testWithdraw() public {
-    //     vm.prank(address(2));
-    //     ps.purchase{value: price }(1, 'randomAddress');
-
-    //     vm.prank(ownerAddr);
-    //     ps.processShipment(0);
+    function testWithdraw_OnlyOwner() public {
+        address mockOwner = address(4);
         
-    //     vm.prank(ownerAddr);
-    //     ps.withdraw();
+        vm.prank(address(2));
+        ps.purchase{value: totalPrice }(1, 'randomAddress');
 
-    //     assertEq(ps.amountAfterShipping(), 0);
-    // }
-
-    // function testWithdraw_OnlyOwner() public {
-    //     address mockOwner = address(4);
+        vm.prank(ownerAddr);
+        ps.processShipment(0);
         
-    //     vm.prank(address(2));
-    //     ps.purchase{value: price }(1, 'randomAddress');
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Ownable.OwnableUnauthorizedAccount.selector,
+                mockOwner
+            )
+        );
+        vm.prank(mockOwner);
+        ps.withdraw();
+    }
 
-    //     vm.prank(ownerAddr);
-    //     ps.processShipment(0);
+    function testWithdraw_WithdrawAmountUnavailable() public {
+        vm.prank(address(2));
+        ps.purchase{value: totalPrice }(1, 'randomAddress');
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PenguStore.WithdrawAmountUnavailable.selector,
+                0
+            )
+        );
+
+        vm.prank(ownerAddr);
+        ps.withdraw();
+
+        assertEq(ps.amountAfterShipping(), 0);
+    }
+
+    function testSetCancelAndRefund() public {
+        vm.prank(buyer1);
+        ps.purchase{value: totalPrice }(1, 'randomAddress');
         
-    //     vm.expectRevert(
-    //         abi.encodeWithSelector(
-    //             Ownable.OwnableUnauthorizedAccount.selector,
-    //             mockOwner
-    //         )
-    //     );
-    //     vm.prank(mockOwner);
-    //     ps.withdraw();
-    // }
-
-    // function testWithdraw_WithdrawAmountUnavailable() public {
-    //     vm.prank(address(2));
-    //     ps.purchase{value: price }(1, 'randomAddress');
-
-    //     vm.expectRevert(
-    //         abi.encodeWithSelector(
-    //             PenguStore.WithdrawAmountUnavailable.selector,
-    //             0
-    //         )
-    //     );
-
-    //     vm.prank(ownerAddr);
-    //     ps.withdraw();
-
-    //     assertEq(ps.amountAfterShipping(), 0);
-    // }
-
-    // function testSetCancelAndRefund() public {
-    //     vm.prank(buyer1);
-    //     ps.purchase{value: price }(1, 'randomAddress');
+        uint32 orderNo = ps.buyersOrder(address(2), 0);
         
-    //     uint32 orderNo = ps.buyersOrder(address(2), 0);
+        vm.prank(ownerAddr);
+        ps.setCancelAndRefund(orderNo);
+    }
+
+    function testSetCancelAndRefundFail_AlreadyCancelled() public {
+        vm.prank(buyer1);
+        ps.purchase{value: totalPrice }(1, 'randomAddress');
         
-    //     vm.prank(ownerAddr);
-    //     ps.setCancelAndRefund(orderNo);
-    // }
+        uint32 orderNo = ps.buyersOrder(address(2), 0);
 
-    // function testSetCancelAndRefundFail_AlreadyCancelled() public {
-    //     vm.prank(buyer1);
-    //     ps.purchase{value: price }(1, 'randomAddress');
+        vm.prank(ownerAddr);
+        ps.setCancelAndRefund(orderNo);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PenguStore.AlreadyCancelled.selector, orderNo)
+        );
+        vm.prank(ownerAddr);
+        ps.setCancelAndRefund(orderNo);
+    }
+
+     function testSetCancelAndRefundFail_AlreadyShipped() public {
+        vm.prank(buyer1);
+        ps.purchase{value: totalPrice }(1, 'randomAddress');
         
-    //     uint32 orderNo = ps.buyersOrder(address(2), 0);
+        uint32 orderNo = ps.buyersOrder(address(2), 0);
 
-    //     vm.prank(ownerAddr);
-    //     ps.setCancelAndRefund(orderNo);
-
-    //     vm.expectRevert(
-    //         abi.encodeWithSelector(
-    //             PenguStore.AlreadyCancelled.selector, orderNo)
-    //     );
-    //     vm.prank(ownerAddr);
-    //     ps.setCancelAndRefund(orderNo);
-    // }
-
-    //  function testSetCancelAndRefundFail_AlreadyShipped() public {
-    //     vm.prank(buyer1);
-    //     ps.purchase{value: price }(1, 'randomAddress');
+        vm.prank(ownerAddr);
+        ps.processShipment(orderNo);
         
-    //     uint32 orderNo = ps.buyersOrder(address(2), 0);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PenguStore.AlreadyShipped.selector, orderNo)
+        );
+        vm.prank(ownerAddr);
+        ps.setCancelAndRefund(orderNo);
+    }
 
-    //     vm.prank(ownerAddr);
-    //     ps.processShipment(orderNo);
-        
-    //     vm.expectRevert(
-    //         abi.encodeWithSelector(
-    //             PenguStore.AlreadyShipped.selector, orderNo)
-    //     );
-    //     vm.prank(ownerAddr);
-    //     ps.setCancelAndRefund(orderNo);
-    // }
+    function testSetCancelAndRefund_Loop() public {
+        vm.prank(buyer1);
+        ps.purchase{value: totalPrice }(1, 'randomAddress');
 
-    // function testSetCancelAndRefund_Loop() public {
-    //     vm.prank(buyer1);
-    //     ps.purchase{value: price }(1, 'randomAddress');
+        vm.prank(address(4));
+        ps.purchase{value: totalPrice }(1, 'randomAddress');
 
-    //     vm.prank(address(4));
-    //     ps.purchase{value: price }(1, 'randomAddress');
+        vm.prank(address(5));
+        ps.purchase{value: totalPrice }(1, 'randomAddress');
 
-    //     vm.prank(address(5));
-    //     ps.purchase{value: price }(1, 'randomAddress');
-
-    //     uint32[] memory orders = new uint32[](3);
-    //     orders[0] = 0;
-    //     orders[1] = 1;
-    //     orders[2] = 2;
+        uint32[] memory orders = new uint32[](3);
+        orders[0] = 0;
+        orders[1] = 1;
+        orders[2] = 2;
        
-    //     for(uint8 i=0; i<3; i++) {
-    //         vm.prank(ownerAddr);
-    //         ps.setCancelAndRefund(i);
-    //         PenguStore.Order memory order = ps.getOrderDetails(i);
-    //         assertEq(
-    //         uint256(order.status),
-    //         uint256(PenguStore.Status.cancelled)
-    //     );
-    //     }
-    // }
+        for(uint8 i=0; i<3; i++) {
+            vm.prank(ownerAddr);
+            ps.setCancelAndRefund(i);
+            PenguStore.Order memory order = ps.getOrderDetails(i);
+            assertEq(
+            uint256(order.status),
+            uint256(PenguStore.Status.cancelled)
+        );
+        }
+    }
 
-    // function testCollectRefund() public {
-    //     vm.prank(buyer1);
-    //     ps.purchase{value: price * 30 }(30, 'randomAddress');
+    function testCollectRefund() public {
+        vm.prank(buyer1);
+        ps.purchase{value: totalPrice }(1, 'randomAddress');
 
-    //     uint32 orderNo = ps.buyersOrder(buyer1, 0);
+        uint32 orderNo = ps.buyersOrder(buyer1, 0);
 
-    //     vm.prank(ownerAddr);
-    //     ps.setCancelAndRefund(orderNo);
+        vm.prank(ownerAddr);
+        ps.setCancelAndRefund(orderNo);
 
-    //     vm.prank(buyer1);
-    //     ps.collectRefund(orderNo);
+        vm.prank(buyer1);
+        ps.collectRefund(orderNo);
 
-    //     console.log("OrderNo: %s", orderNo);
+        PenguStore.Order memory order = ps.getOrderDetails(orderNo);
 
-    //     PenguStore.Order memory order = ps.getOrderDetails(orderNo);
+        assertEq(ps.payments(buyer1), 0);
+        assertEq(order.amount, 0); 
+        assertEq(ps.totalPayment(), 0); 
+        assertEq(
+            uint256(order.status),
+            uint256(PenguStore.Status.refund)
+        );
+    }
 
-    //     assertEq(ps.payments(buyer1), 0);
-    //     assertEq(order.amount, 0); 
-    //     assertEq(ps.totalPayment(), 0); 
-    //     assertEq(
-    //         uint256(order.status),
-    //         uint256(PenguStore.Status.refund)
-    //     );
-    // }
+    function testCollectRefund_invalidCollector() public {
+        vm.prank(buyer1);
+        ps.purchase{value: totalPrice}(1, 'randomAddress');
 
-    // function testCollectRefund_invalidCollector() public {
-    //     vm.prank(buyer1);
-    //     ps.purchase{value: price *  9 }(9, 'randomAddress');
+        uint32 orderNo = ps.buyersOrder(buyer1, 0);
 
-    //     uint32 orderNo = ps.buyersOrder(buyer1, 0);
+        vm.prank(ownerAddr);
+        ps.setCancelAndRefund(orderNo);
 
-    //     vm.prank(ownerAddr);
-    //     ps.setCancelAndRefund(orderNo);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PenguStore.InvalidCollector.selector, buyer3)
+        );
+        vm.prank(buyer3);
+        ps.collectRefund(orderNo);
+    }
 
-    //     vm.expectRevert(
-    //         abi.encodeWithSelector(
-    //             PenguStore.InvalidCollector.selector, buyer3)
-    //     );
-    //     vm.prank(buyer3);
-    //     ps.collectRefund(orderNo);
-    // }
+    function testCollectRefund_InsufficientBuyerPayment() public {
+        vm.prank(buyer1);
+        ps.purchase{value: totalPrice}(1, 'randomAddress');
 
-    // function testCollectRefund_InsufficientBuyerPayment() public {
-    //     vm.prank(buyer1);
-    //     ps.purchase{value: price *  6 }(6, 'randomAddress');
+        uint32 orderNo = ps.buyersOrder(buyer1, 0);
 
-    //     uint32 orderNo = ps.buyersOrder(buyer1, 0);
+        vm.prank(ownerAddr);
+        ps.setCancelAndRefund(orderNo);
 
-    //     vm.prank(ownerAddr);
-    //     ps.setCancelAndRefund(orderNo);
-
-    //     vm.prank(buyer1);
-    //     ps.collectRefund(orderNo);
+        vm.prank(buyer1);
+        ps.collectRefund(orderNo);
         
-    //     vm.expectRevert(
-    //         abi.encodeWithSelector(
-    //             PenguStore.InsufficientBuyerPayment.selector, orderNo)
-    //     );
-    //     vm.prank(buyer1);
-    //     ps.collectRefund(orderNo);
-    // }
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PenguStore.InsufficientBuyerPayment.selector, orderNo)
+        );
+        vm.prank(buyer1);
+        ps.collectRefund(orderNo);
+    }
 
-    // function testCollectRefund_AlreadyShipped() public {
-    //     vm.prank(buyer1);
-    //     ps.purchase{value: price *  9 }(9, 'randomAddress');
+    function testCollectRefund_AlreadyShipped() public {
+        vm.prank(buyer1);
+        ps.purchase{value: totalPrice }(1, 'randomAddress');
 
-    //     uint32 orderNo = ps.buyersOrder(buyer1, 0);
+        uint32 orderNo = ps.buyersOrder(buyer1, 0);
 
-    //     vm.prank(ownerAddr);
-    //     ps.processShipment(orderNo);
+        vm.prank(ownerAddr);
+        ps.processShipment(orderNo);
 
-    //     vm.expectRevert(
-    //         abi.encodeWithSelector(
-    //             PenguStore.AlreadyShipped.selector, orderNo)
-    //     );
-    //     vm.prank(buyer1);
-    //     ps.collectRefund(orderNo);
-    // }
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PenguStore.AlreadyShipped.selector, orderNo)
+        );
+        vm.prank(buyer1);
+        ps.collectRefund(orderNo);
+    }
 
-    // function testCollectRefund_OrderedNotCancelled() public {
-    //     vm.prank(buyer1);
-    //     ps.purchase{value: price *  9 }(9, 'randomAddress');
+    function testCollectRefund_OrderedNotCancelled() public {
+        vm.prank(buyer1);
+        ps.purchase{value: totalPrice }(1, 'randomAddress');
 
-    //     uint32 orderNo = ps.buyersOrder(buyer1, 0);
+        uint32 orderNo = ps.buyersOrder(buyer1, 0);
 
-    //     vm.expectRevert(
-    //         abi.encodeWithSelector(
-    //             PenguStore.OrderNotCancelled.selector, orderNo)
-    //     );
-    //     vm.prank(buyer1);
-    //     ps.collectRefund(orderNo);
-    // }
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PenguStore.OrderNotCancelled.selector, orderNo)
+        );
+        vm.prank(buyer1);
+        ps.collectRefund(orderNo);
+    }
 }
 
-//    error OwnableInvalidOwner(address owner);

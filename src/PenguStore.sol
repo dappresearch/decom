@@ -266,7 +266,7 @@ contract PenguStore is Ownable {
     }
 }
 
-// How to contact a buyer if there is a shipping problem?
+
 // function uri(uint256 tokenId) override public view returns (string memory) {
 //     return string(
 //     abi.encodePacked(
