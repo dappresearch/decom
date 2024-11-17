@@ -39,7 +39,7 @@ contract DeCom is IDeCom, IError, Ownable, ReentrancyGuard {
     mapping(address => uint32[]) public buyersOrder;
 
     // Store the order details with respective order number.
-    mapping(uint32 => Order) orders;
+    mapping(uint32 => Order) public orders;
 
     // Record the buyer purchase payments.
     mapping(address => uint256) public payments;
@@ -73,6 +73,7 @@ contract DeCom is IDeCom, IError, Ownable, ReentrancyGuard {
     /**
     * @notice Returns the total cost including shipping for the given quantity.
     * @dev Item price and shipping cost is converted to Wei using chainlink ETH/USD price feed.
+    *      While calculating amountToWei, there is some percision loss, could be improved.
     * @param quantity The number of items to be shipped.
     * @return The total cost including the price of items and shipping cost.
     */
@@ -155,13 +156,14 @@ contract DeCom is IDeCom, IError, Ownable, ReentrancyGuard {
     function withdraw() external onlyOwner {
         uint256 withdrawAmount = amountAfterShipping;
 
-        if (amountAfterShipping == 0) revert WithdrawAmountUnavailable(0);
+        if (amountAfterShipping == 0 || 
+            address(this).balance < withdrawAmount
+        ) revert WithdrawAmountUnavailable(0);
 
         unchecked {
             totalWithdraw += amountAfterShipping;
+            amountAfterShipping = 0;
         }
-
-        amountAfterShipping = 0;
 
         payable(owner()).transfer(withdrawAmount);
     }
@@ -192,6 +194,9 @@ contract DeCom is IDeCom, IError, Ownable, ReentrancyGuard {
     function setCancelAndRefund(
         uint32[20] calldata _orderNo
     ) external onlyOwner {
+
+        if (_orderNo.length > 20) revert InValidOrderLength(_orderNo.length);
+
         for (uint8 i = 0; i < _orderNo.length; i++) {
             Order storage order = orders[_orderNo[i]];
                 if (order.status == Status.shipped) revert AlreadyShipped(i);
@@ -213,7 +218,9 @@ contract DeCom is IDeCom, IError, Ownable, ReentrancyGuard {
 
         if(msg.sender != order.buyerAddr) revert InvalidCollector(msg.sender);
 
-        if (order.amount == 0 || payments[order.buyerAddr] > order.amount)
+        if (order.amount == 0 || 
+            payments[order.buyerAddr] == 0 ||
+            payments[order.buyerAddr] < order.amount)
             revert InsufficientBuyerPayment(_orderNo);
             
         if (order.status == Status.shipped) revert AlreadyShipped(_orderNo);
@@ -223,12 +230,11 @@ contract DeCom is IDeCom, IError, Ownable, ReentrancyGuard {
         uint256 refundAmount = order.amount;
 
         unchecked {
-            totalPayment -= order.amount;
             payments[msg.sender] -= order.amount;
+            totalPayment -= order.amount;
+            order.amount = 0;
+            order.status = Status.refund;
         }
-
-        order.amount = 0;
-        order.status = Status.refund;
         
         payable(msg.sender).transfer(refundAmount);
     }
