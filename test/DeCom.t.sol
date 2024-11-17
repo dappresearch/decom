@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {Test, console} from "forge-std/Test.sol";
-import {DeCom, Ownable, PriceFeedV3, IError} from "../src/DeCom.sol";
+import {DeCom, Ownable, PriceFeedV3, IError, Order, Status} from "../src/DeCom.sol";
 import {MockAggregratorV3Interface} from "../src/MockAggregratorV3Interface.sol";
 
 contract PenguStoreTest is Test {
@@ -140,7 +140,7 @@ contract PenguStoreTest is Test {
         vm.prank(buyer1);
         decom.purchase{value: purchaseAmount }(orderQty, 'randomAddress');
 
-        DeCom.Order memory order = decom.getOrderDetails(decom.orderNo() - 1);
+        Order memory order = decom.getOrderDetails(decom.orderNo() - 1);
 
         assertEq(order.shippingAddr, 'randomAddress', 'Incorrect shipping address');
         assertEq(order.quantity, orderQty, 'Incorrect order quantity');
@@ -149,7 +149,7 @@ contract PenguStoreTest is Test {
         assertEq(order.shippingAddr, 'randomAddress', 'Incorrect shipping address');
         assertEq(
             uint256(order.status),
-            uint256(DeCom.Status.pending),
+            uint256(Status.pending),
             'Incorrect order status'
         );
         assertEq(decom.payments(buyer1), purchaseAmount, 'Incorrect payment');
@@ -196,10 +196,10 @@ contract PenguStoreTest is Test {
         decom.processShipment(0);
 
         // Check order status.
-        DeCom.Order memory order = decom.getOrderDetails(0);
+        Order memory order = decom.getOrderDetails(0);
         assertEq(
             uint256(order.status),
-            uint256(DeCom.Status.shipped),
+            uint256(Status.shipped),
             'Invalid order status'
         );
         
@@ -348,10 +348,10 @@ contract PenguStoreTest is Test {
         for(uint8 i=0; i<3; i++) {
             vm.prank(ownerAddr);
             decom.setCancelAndRefund(i);
-            DeCom.Order memory order = decom.getOrderDetails(i);
+            Order memory order = decom.getOrderDetails(i);
             assertEq(
             uint256(order.status),
-            uint256(DeCom.Status.cancelled)
+            uint256(Status.cancelled)
         );
         }
     }
@@ -368,14 +368,14 @@ contract PenguStoreTest is Test {
         vm.prank(buyer1);
         decom.collectRefund(orderNo);
 
-        DeCom.Order memory order = decom.getOrderDetails(orderNo);
+        Order memory order = decom.getOrderDetails(orderNo);
 
         assertEq(decom.payments(buyer1), 0);
         assertEq(order.amount, 0); 
         assertEq(decom.totalPayment(), 0); 
         assertEq(
             uint256(order.status),
-            uint256(DeCom.Status.refund)
+            uint256(Status.refund)
         );
     }
 

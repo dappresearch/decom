@@ -8,8 +8,11 @@ import "forge-std/console.sol";
 
 import {PriceFeedV3} from "./PriceFeedV3.sol";
 import {IError} from "./IError.sol";
+import {IDeCom} from "./IDeCom.sol";
+import {Status, Order} from "./Container.sol";
 
-contract DeCom is IError, Ownable, ReentrancyGuard {
+contract DeCom is IDeCom, IError, Ownable, ReentrancyGuard {
+    
     // No of total stock available for sale
     uint32 public totalStock;
 
@@ -27,26 +30,11 @@ contract DeCom is IError, Ownable, ReentrancyGuard {
 
     // revenue generted after fulfilling shipping
     uint256 public amountAfterShipping;
-    
-    enum Status {
-        pending,
-        shipped,
-        cancelled,
-        refund
-    }
 
     PriceFeedV3 public priceFeed;
 
     constructor(address owner, address chainLinkOracle) Ownable(owner) {
         priceFeed = new PriceFeedV3(chainLinkOracle);
-    }
-
-    struct Order {
-        string shippingAddr;
-        uint256 quantity;
-        uint256 amount;
-        address buyerAddr;
-        Status status;
     }
 
     // Store the buyers order
@@ -259,16 +247,11 @@ contract DeCom is IError, Ownable, ReentrancyGuard {
     * @notice Retreive order details.
     * @param _orderNo Order Number of the buyer.
     */
-    function getOrderDetails(
-        uint32 _orderNo
-    )
-        external
-        view
-        returns (Order memory)
-    {
+    function getOrderDetails(uint32 _orderNo) external view returns (Order memory) {
         Order memory order = orders[_orderNo];
         return order;
     }
+    
 }
 
 
