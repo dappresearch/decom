@@ -8,12 +8,7 @@ import "forge-std/console.sol";
 
 import {PriceFeedV3} from "./PriceFeedV3.sol";
 
-// Need to figure out what to sell
-// This is important
 
-// Shipping cost for the cap  
-
-// When to use calldata vs memory
 contract DeCom is Ownable, ReentrancyGuard {
     error InvalidQuantity(uint256 quantity);
 
@@ -124,6 +119,12 @@ contract DeCom is Ownable, ReentrancyGuard {
         return (priceInWei + shippingCostInWei);
     }
 
+    /**
+    * @notice Purchase the given product.
+    * @dev Buyer address must be encrypted.
+    * @param quantity Number of product item to be purchased.
+    * @param destination Encrypted destination address of the buyer.
+    */
     function purchase(
         uint32 quantity,
         string memory destination
@@ -132,7 +133,6 @@ contract DeCom is Ownable, ReentrancyGuard {
             revert InvalidQuantity(quantity);
 
         uint256 totalCostInWei = totalCost(quantity);
-
 
         // Buyer purchase amount should match the item price.
         if (msg.value != totalCostInWei) revert InvalidAmount(msg.value);
@@ -160,6 +160,10 @@ contract DeCom is Ownable, ReentrancyGuard {
         }
     }
 
+    /** 
+    * @notice Update shipping status.
+    * @param _orderNo Order number of the given buyer.
+    */
     function processShipment(uint32 _orderNo) external onlyOwner {
         Order storage order = orders[_orderNo];
 
@@ -176,6 +180,10 @@ contract DeCom is Ownable, ReentrancyGuard {
         }
     }
 
+    /**
+    * @notice Able to withdraw contract balance by the owner.
+    * @dev Owner can only withdraw if shipping order has been fulfilled.
+    */
     function withdraw() external onlyOwner {
         uint256 withdrawAmount = amountAfterShipping;
 
@@ -187,13 +195,13 @@ contract DeCom is Ownable, ReentrancyGuard {
 
         amountAfterShipping = 0;
 
-        // (bool success, ) = payable(getOwner).call{value: withdrawAmount}("");
         payable(owner()).transfer(withdrawAmount);
     }
 
-    // set cancel multiple orderNo
-    // be aware of loop.+
-    // Cannot return once the item has been shipped.
+    /**
+    * @notice Refund money to the buyer.
+    * @param _orderNo Order Number of the buyer.
+    */
     function setCancelAndRefund(uint32 _orderNo) external onlyOwner {
         Order storage order = orders[_orderNo];
 
@@ -209,12 +217,15 @@ contract DeCom is Ownable, ReentrancyGuard {
         order.status = Status.cancelled;
     }
 
-    // for safety reason only 20 loops is allowed
+    /**
+    * @notice Refund money to the multiple buyers.
+    * @param _orderNo Array of Order Number of the buyers.
+    */
     function setCancelAndRefund(
-        uint32[20] calldata _ordersNo
+        uint32[20] calldata _orderNo
     ) external onlyOwner {
-        for (uint8 i = 0; i < _ordersNo.length; i++) {
-            Order storage order = orders[_ordersNo[i]];
+        for (uint8 i = 0; i < _orderNo.length; i++) {
+            Order storage order = orders[_orderNo[i]];
                 if (order.status == Status.shipped) revert AlreadyShipped(i);
                 if(order.status == Status.refund) revert AlreadyRefund(i);
                 if (order.status == Status.cancelled) revert AlreadyCancelled(i);
@@ -225,6 +236,10 @@ contract DeCom is Ownable, ReentrancyGuard {
         }
     }
 
+    /**
+    * @notice Collect refund buy the buyer.
+    * @param _orderNo Order Number of the buyer.
+    */
     function collectRefund(uint32 _orderNo) external nonReentrant() {
         Order storage order = orders[_orderNo];
 
@@ -250,19 +265,26 @@ contract DeCom is Ownable, ReentrancyGuard {
         payable(msg.sender).transfer(refundAmount);
     }
 
-    // Returns the orde array
+    /**
+    * @notice Retreive order number of the buyer.
+    * @param buyer buyer address.
+    */
     function getOrder(address buyer) external view returns (uint32[] memory) {
         return buyersOrder[buyer];
     }
 
+    /**
+    * @notice Retreive order details.
+    * @param _orderNo Order Number of the buyer.
+    */
     function getOrderDetails(
-        uint32 _orderNum
+        uint32 _orderNo
     )
         external
         view
         returns (Order memory)
     {
-        Order memory order = orders[_orderNum];
+        Order memory order = orders[_orderNo];
         return order;
     }
 }
