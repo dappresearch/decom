@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: No License
 pragma solidity ^0.8.7;
 
 import "forge-std/console.sol";
