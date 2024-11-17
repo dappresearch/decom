@@ -240,7 +240,7 @@ contract DeCom is Ownable, ReentrancyGuard {
     * @notice Collect refund buy the buyer.
     * @param _orderNo Order Number of the buyer.
     */
-    function collectRefund(uint32 _orderNo) external nonReentrant() {
+    function collectRefund(uint32 _orderNo) external nonReentrant {
         Order storage order = orders[_orderNo];
 
         if(msg.sender != order.buyerAddr) revert InvalidCollector(msg.sender);
