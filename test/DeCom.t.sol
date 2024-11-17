@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {Test, console} from "forge-std/Test.sol";
-import {DeCom, Ownable, PriceFeedV3} from "../src/DeCom.sol";
+import {DeCom, Ownable, PriceFeedV3, IError} from "../src/DeCom.sol";
 import {MockAggregratorV3Interface} from "../src/MockAggregratorV3Interface.sol";
 
 contract PenguStoreTest is Test {
@@ -166,7 +166,7 @@ contract PenguStoreTest is Test {
          uint16 orderStock = 301;
          vm.expectRevert(
             abi.encodeWithSelector(
-                DeCom.InvalidQuantity.selector,
+                IError.InvalidQuantity.selector,
                 orderStock
             )
         );
@@ -178,7 +178,7 @@ contract PenguStoreTest is Test {
          uint8 orderPrice = 1 wei ;
          vm.expectRevert(
             abi.encodeWithSelector(
-                DeCom.InvalidAmount.selector,
+                IError.InvalidAmount.selector,
                 orderPrice
             )
         );
@@ -215,7 +215,7 @@ contract PenguStoreTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                DeCom.AlreadyShipped.selector,
+                IError.AlreadyShipped.selector,
                 0
             )
         );
@@ -275,7 +275,7 @@ contract PenguStoreTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                DeCom.WithdrawAmountUnavailable.selector,
+                IError.WithdrawAmountUnavailable.selector,
                 0
             )
         );
@@ -307,7 +307,7 @@ contract PenguStoreTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                DeCom.AlreadyCancelled.selector, orderNo)
+                IError.AlreadyCancelled.selector, orderNo)
         );
         vm.prank(ownerAddr);
         decom.setCancelAndRefund(orderNo);
@@ -324,7 +324,7 @@ contract PenguStoreTest is Test {
         
         vm.expectRevert(
             abi.encodeWithSelector(
-                DeCom.AlreadyShipped.selector, orderNo)
+                IError.AlreadyShipped.selector, orderNo)
         );
         vm.prank(ownerAddr);
         decom.setCancelAndRefund(orderNo);
@@ -390,7 +390,7 @@ contract PenguStoreTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                DeCom.InvalidCollector.selector, buyer3)
+                IError.InvalidCollector.selector, buyer3)
         );
         vm.prank(buyer3);
         decom.collectRefund(orderNo);
@@ -410,7 +410,7 @@ contract PenguStoreTest is Test {
         
         vm.expectRevert(
             abi.encodeWithSelector(
-                DeCom.InsufficientBuyerPayment.selector, orderNo)
+                IError.InsufficientBuyerPayment.selector, orderNo)
         );
         vm.prank(buyer1);
         decom.collectRefund(orderNo);
@@ -427,7 +427,7 @@ contract PenguStoreTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                DeCom.AlreadyShipped.selector, orderNo)
+                IError.AlreadyShipped.selector, orderNo)
         );
         vm.prank(buyer1);
         decom.collectRefund(orderNo);
@@ -441,7 +441,7 @@ contract PenguStoreTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                DeCom.OrderNotCancelled.selector, orderNo)
+                IError.OrderNotCancelled.selector, orderNo)
         );
         vm.prank(buyer1);
         decom.collectRefund(orderNo);
