@@ -71,7 +71,6 @@ contract DeCom is IDeCom, IError, Ownable, ReentrancyGuard {
     function setShippingCost(uint256 newShippingCost) external onlyOwner {
         shippingCost = newShippingCost;
         emit ShippingCostUpdated(newShippingCost);
-
     }
 
     /**
@@ -155,7 +154,6 @@ contract DeCom is IDeCom, IError, Ownable, ReentrancyGuard {
         }
         
         emit OrderShipped(_orderNo, order.buyerAddr);
-
     }
 
     /**
@@ -271,7 +269,6 @@ contract DeCom is IDeCom, IError, Ownable, ReentrancyGuard {
         Order memory order = orders[_orderNo];
         return order;
     }
-    
 }
 
 
