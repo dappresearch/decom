@@ -50,6 +50,7 @@ contract DeCom is IDeCom, IError, Ownable, ReentrancyGuard {
      */
     function setStock(uint32 newTotalStock) external onlyOwner {
         totalStock = newTotalStock;
+        emit StockUpdated(newTotalStock);
     }
 
     /**
@@ -59,6 +60,7 @@ contract DeCom is IDeCom, IError, Ownable, ReentrancyGuard {
      */
     function setPrice(uint256 newPrice) external onlyOwner {
         price = newPrice;
+        emit PriceUpdated(newPrice);
     }
 
     /**
@@ -68,6 +70,8 @@ contract DeCom is IDeCom, IError, Ownable, ReentrancyGuard {
      */
     function setShippingCost(uint256 newShippingCost) external onlyOwner {
         shippingCost = newShippingCost;
+        emit ShippingCostUpdated(newShippingCost);
+
     }
 
     /**
@@ -79,7 +83,7 @@ contract DeCom is IDeCom, IError, Ownable, ReentrancyGuard {
     */
     function totalCost(uint32 quantity) public view returns (uint256) {
         // Convert item price into current ETH/USD market price in wei.
-        uint256 priceInWei = (priceFeed.amountToWei(price)) * quantity;
+        uint256 priceInWei = priceFeed.amountToWei(price * quantity);
 
         // Convert shipping cost into current ETH/USD market price in wei.
         uint256 shippingCostInWei = priceFeed.amountToWei(shippingCost);
@@ -96,7 +100,7 @@ contract DeCom is IDeCom, IError, Ownable, ReentrancyGuard {
     */
     function purchase(
         uint32 quantity,
-        string memory destination
+        string calldata destination
     ) external payable {
         if (quantity == 0 || quantity > totalStock)
             revert InvalidQuantity(quantity);
@@ -127,6 +131,8 @@ contract DeCom is IDeCom, IError, Ownable, ReentrancyGuard {
             totalPayment += msg.value;
             orderNo++;
         }
+
+        emit PurchaseOrder(orderNo, msg.sender, quantity, msg.value, destination);
     }
 
     /** 
@@ -147,6 +153,9 @@ contract DeCom is IDeCom, IError, Ownable, ReentrancyGuard {
         unchecked {
             amountAfterShipping += order.amount;
         }
+        
+        emit OrderShipped(_orderNo, order.buyerAddr);
+
     }
 
     /**
@@ -166,6 +175,8 @@ contract DeCom is IDeCom, IError, Ownable, ReentrancyGuard {
         }
 
         payable(owner()).transfer(withdrawAmount);
+
+        emit Withdrawn(withdrawAmount, owner());
     }
 
     /**
@@ -185,6 +196,8 @@ contract DeCom is IDeCom, IError, Ownable, ReentrancyGuard {
             revert InsufficientBuyerPayment(_orderNo);
 
         order.status = Status.cancelled;
+
+        emit OrderCancelled(_orderNo, order.buyerAddr);
     }
 
     /**
@@ -194,7 +207,6 @@ contract DeCom is IDeCom, IError, Ownable, ReentrancyGuard {
     function setCancelAndRefund(
         uint32[20] calldata _orderNo
     ) external onlyOwner {
-
         if (_orderNo.length > 20) revert InValidOrderLength(_orderNo.length);
 
         for (uint8 i = 0; i < _orderNo.length; i++) {
@@ -206,6 +218,8 @@ contract DeCom is IDeCom, IError, Ownable, ReentrancyGuard {
             if (order.amount == 0 || payments[order.buyerAddr] > order.amount)
                 revert InsufficientBuyerPayment(i);
                 order.status = Status.cancelled;
+
+               emit OrderCancelled(_orderNo[i], order.buyerAddr);
         }
     }
 
@@ -237,6 +251,8 @@ contract DeCom is IDeCom, IError, Ownable, ReentrancyGuard {
         }
         
         payable(msg.sender).transfer(refundAmount);
+
+        emit RefundCollected(_orderNo, msg.sender, refundAmount);
     }
 
     /**
