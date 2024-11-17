@@ -13,15 +13,13 @@ import {Status, Order} from "./Container.sol";
 
 contract DeCom is IDeCom, IError, Ownable, ReentrancyGuard {
     
-    // No of total stock available for sale
     uint32 public totalStock;
 
-    // track number of orders
+    // Track number of orders.
     uint32 public orderNo;
 
     uint256 public shippingCost;
 
-    // single price
     uint256 public price;
 
     uint256 public totalPayment;
