@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import {Test, console} from "forge-std/Test.sol";
 import {DeCom, Ownable, PriceFeedV3, IError, Order, Status} from "../src/DeCom.sol";
-import {MockAggregratorV3Interface} from "../src/MockAggregratorV3Interface.sol";
+import {MockAggregratorV3Interface} from "../src/mocks/MockAggregratorV3Interface.sol";
 
 contract PenguStoreTest is Test {
     DeCom public decom;
