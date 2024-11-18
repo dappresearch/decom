@@ -26,7 +26,7 @@ contract DeCom is IDeCom, IDeComEvents, IError, Ownable, ReentrancyGuard {
 
     uint256 public totalWithdraw;
 
-    // revenue generted after fulfilling shipping
+    // Revenue generted after fulfilling shipping.
     uint256 public amountAfterShipping;
 
     PriceFeedV3 public priceFeed;
@@ -118,21 +118,21 @@ contract DeCom is IDeCom, IDeComEvents, IError, Ownable, ReentrancyGuard {
         order.buyerAddr = msg.sender;
         order.status = Status.pending;
         
-        // Record the payment sent by the buyers.
-        payments[msg.sender] += amount;
-        
         // Buyer can have multiple orders.
         buyersOrder[msg.sender].push(orderNo);
 
-        // overflow not possible, totalStock > stock, already checked.
-        // msg.value <= (totalStock * price) + shippingCost.
         unchecked {
+            // Record the payment sent by the buyers.
+            payments[msg.sender] += amount;
+
+           // Overflow not possible, totalStock > quantity, already checked.
             totalStock -= quantity;
+
             totalPayment += msg.value;
             orderNo++;
         }
 
-        emit PurchaseOrder(orderNo, msg.sender, quantity, msg.value, destination);
+        emit PurchaseOrder(orderNo - 1, msg.sender, quantity, msg.value, destination);
     }
 
     /** 
@@ -178,23 +178,28 @@ contract DeCom is IDeCom, IDeComEvents, IError, Ownable, ReentrancyGuard {
         emit Withdrawn(withdrawAmount, owner());
     }
 
+    /**
+    * @dev Internal function to check if order is shipped and buyer has sufficient balance.
+    * @param order Struct Order.
+    * @param _orderNo Order number of the buyer.
+    */
     function _checkShippedAndBuyerPayment(Order memory order, uint32 _orderNo) internal view {
         if (order.amount == 0 || payments[order.buyerAddr] < order.amount)
             revert InsufficientBuyerPayment(_orderNo);
 
-        if (order.status == Status.shipped) revert AlreadyShipped(_orderNo);    
+        if (order.status == Status.shipped) revert AlreadyShipped(_orderNo); 
+
+        if(order.status == Status.refund) revert AlreadyRefund(_orderNo);
     }
 
     /**
-    * @dev Internal function to update the status of an order.
-    * @param _orderNo The order number.
+    * @dev Private function to update the status of an order.
+    * @param _orderNo Order number of the buyer.
     */
-    function _updateOrderStatus(uint32 _orderNo) internal {
+    function _updateOrderStatus(uint32 _orderNo) private {
         Order storage order = orders[_orderNo];
 
         _checkShippedAndBuyerPayment(order, _orderNo);
-
-        if(order.status == Status.refund) revert AlreadyRefund(_orderNo);
 
         if (order.status == Status.cancelled) revert AlreadyCancelled(_orderNo);
 
@@ -204,7 +209,7 @@ contract DeCom is IDeCom, IDeComEvents, IError, Ownable, ReentrancyGuard {
     }
     /**
     * @notice Refund money to the buyer.
-    * @param _orderNo Order Number of the buyer.
+    * @param _orderNo Order number of the buyer.
     */
     function setCancelAndRefund(uint32 _orderNo) external onlyOwner {
         _updateOrderStatus(_orderNo);
@@ -217,8 +222,6 @@ contract DeCom is IDeCom, IDeComEvents, IError, Ownable, ReentrancyGuard {
     function setCancelAndRefund(
         uint32[20] calldata _orderNo
     ) external onlyOwner {
-        if (_orderNo.length > 20) revert InValidOrderLength(_orderNo.length);
-
         for (uint8 i = 0; i < _orderNo.length; i++) {
             _updateOrderStatus(_orderNo[i]);
         }
@@ -238,13 +241,17 @@ contract DeCom is IDeCom, IDeComEvents, IError, Ownable, ReentrancyGuard {
         if(order.status != Status.cancelled) revert OrderNotCancelled(_orderNo);
 
         uint256 refundAmount = order.amount;
-
+        
         unchecked {
+            // Underflow not possible, payments[order.buyerAddr] < order.amount already checked.
             payments[msg.sender] -= order.amount;
+            
+            // Underflow not possible, order.amount is always less that totalPayment.
             totalPayment -= order.amount;
-            order.amount = 0;
-            order.status = Status.refund;
         }
+
+        order.amount = 0;
+        order.status = Status.refund;
         
         payable(msg.sender).transfer(refundAmount);
 
@@ -253,7 +260,7 @@ contract DeCom is IDeCom, IDeComEvents, IError, Ownable, ReentrancyGuard {
 
     /**
     * @notice Retreive order number of the buyer.
-    * @param buyer buyer address.
+    * @param buyer Buyer address.
     */
     function getOrder(address buyer) external view returns (uint32[] memory) {
         return buyersOrder[buyer];
