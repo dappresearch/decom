@@ -110,6 +110,7 @@ contract DeCom is IDeCom, IDeComEvents, IError, Ownable, ReentrancyGuard {
         if (msg.value != totalCostInWei) revert InvalidAmount(msg.value);
 
         uint256 amount = msg.value;
+
         Order storage order = orders[orderNo];
         order.shippingAddr = destination;
         order.quantity = quantity;
@@ -177,25 +178,36 @@ contract DeCom is IDeCom, IDeComEvents, IError, Ownable, ReentrancyGuard {
         emit Withdrawn(withdrawAmount, owner());
     }
 
+    function _checkShippedAndBuyerPayment(Order memory order, uint32 _orderNo) internal view {
+        if (order.amount == 0 || payments[order.buyerAddr] < order.amount)
+            revert InsufficientBuyerPayment(_orderNo);
+
+        if (order.status == Status.shipped) revert AlreadyShipped(_orderNo);    
+    }
+
     /**
-    * @notice Refund money to the buyer.
-    * @param _orderNo Order Number of the buyer.
+    * @dev Internal function to update the status of an order.
+    * @param _orderNo The order number.
     */
-    function setCancelAndRefund(uint32 _orderNo) external onlyOwner {
+    function _updateOrderStatus(uint32 _orderNo) internal {
         Order storage order = orders[_orderNo];
 
-        if (order.status == Status.shipped) revert AlreadyShipped(_orderNo);
+        _checkShippedAndBuyerPayment(order, _orderNo);
 
         if(order.status == Status.refund) revert AlreadyRefund(_orderNo);
 
         if (order.status == Status.cancelled) revert AlreadyCancelled(_orderNo);
 
-        if (order.amount == 0 || payments[order.buyerAddr] > order.amount)
-            revert InsufficientBuyerPayment(_orderNo);
-
         order.status = Status.cancelled;
 
         emit OrderCancelled(_orderNo, order.buyerAddr);
+    }
+    /**
+    * @notice Refund money to the buyer.
+    * @param _orderNo Order Number of the buyer.
+    */
+    function setCancelAndRefund(uint32 _orderNo) external onlyOwner {
+        _updateOrderStatus(_orderNo);
     }
 
     /**
@@ -208,16 +220,7 @@ contract DeCom is IDeCom, IDeComEvents, IError, Ownable, ReentrancyGuard {
         if (_orderNo.length > 20) revert InValidOrderLength(_orderNo.length);
 
         for (uint8 i = 0; i < _orderNo.length; i++) {
-            Order storage order = orders[_orderNo[i]];
-                if (order.status == Status.shipped) revert AlreadyShipped(i);
-                if(order.status == Status.refund) revert AlreadyRefund(i);
-                if (order.status == Status.cancelled) revert AlreadyCancelled(i);
-
-            if (order.amount == 0 || payments[order.buyerAddr] > order.amount)
-                revert InsufficientBuyerPayment(i);
-                order.status = Status.cancelled;
-
-               emit OrderCancelled(_orderNo[i], order.buyerAddr);
+            _updateOrderStatus(_orderNo[i]);
         }
     }
 
@@ -228,14 +231,9 @@ contract DeCom is IDeCom, IDeComEvents, IError, Ownable, ReentrancyGuard {
     function collectRefund(uint32 _orderNo) external nonReentrant {
         Order storage order = orders[_orderNo];
 
-        if(msg.sender != order.buyerAddr) revert InvalidCollector(msg.sender);
+        _checkShippedAndBuyerPayment(order, _orderNo);
 
-        if (order.amount == 0 || 
-            payments[order.buyerAddr] == 0 ||
-            payments[order.buyerAddr] < order.amount)
-            revert InsufficientBuyerPayment(_orderNo);
-            
-        if (order.status == Status.shipped) revert AlreadyShipped(_orderNo);
+        if(msg.sender != order.buyerAddr) revert InvalidCollector(msg.sender);
 
         if(order.status != Status.cancelled) revert OrderNotCancelled(_orderNo);
 
