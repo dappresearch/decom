@@ -36,7 +36,7 @@ contract PriceFeedV3 {
     }
     
     /**
-     * @note Returns the latest answer, which is eth/usd price.
+     * Returns the latest answer, which is eth/usd price.
      */
     function getChainlinkDataFeedLatestAnswer() internal view returns (int) {
         // prettier-ignore
@@ -52,8 +52,8 @@ contract PriceFeedV3 {
     }
     
     /**
-     * @note Convert Chainlink oracle price to base wei.
-     * @dev There is some amount of percision loss, needs to improve.
+     * Convert Chainlink oracle price to base wei.
+     * There is some amount of percision loss, needs to improve.
      */
     function amountToWei(uint256 amount) public view returns (uint256) {
         int256 price = getChainlinkDataFeedLatestAnswer();    

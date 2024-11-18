@@ -2,15 +2,20 @@
 pragma solidity ^0.8.20;
 
 import {Test, console} from "forge-std/Test.sol";
-import {DeCom, Ownable, PriceFeedV3, IError, Order, Status} from "../src/DeCom.sol";
+import {IDeComEvents} from "../src/IDeCom.sol";
 import {MockAggregratorV3Interface} from "../src/mocks/MockAggregratorV3Interface.sol";
 
-contract PenguStoreTest is Test {
+import  "../src/DeCom.sol";
+
+contract PenguStoreTest is Test, IDeComEvents {
+    
     DeCom public decom;
 
     MockAggregratorV3Interface public mockOracle;
 
     PriceFeedV3 public priceFeed;
+
+    IDeCom idecom;
 
     address ownerAddr;
 
@@ -31,7 +36,7 @@ contract PenguStoreTest is Test {
     // $15 + $11 = $26, calculated at the eth price of $3200
     // see method `totalStock` and contract `MockAggregratorV3Interface`.
     uint256 totalPrice = 8125000000000000;
-
+        
     function setUp() public {
         ownerAddr = address(3);
         buyer1 = address(2);
@@ -70,13 +75,18 @@ contract PenguStoreTest is Test {
     }
     
     function testSetStock() public  {
+        uint32 qty = 300;
+
         vm.prank(ownerAddr);
-        decom.setStock(300);
-        assertEq(decom.totalStock(), 300);
+
+        vm.expectEmit(true, false, false, false);
+        emit StockUpdated(qty);
+        decom.setStock(qty);
+
+        assertEq(decom.totalStock(), qty, "Incorrect total stock");
     }
 
     function testSetStock_Fail_onlyOwner() public {
-         // Ownable contract is from openzeppelin
          vm.expectRevert(
             abi.encodeWithSelector(
                 Ownable.OwnableUnauthorizedAccount.selector,
@@ -88,9 +98,15 @@ contract PenguStoreTest is Test {
     }
 
     function testSetPrice() public  {
+        uint32 qty = 300;
+
         vm.prank(ownerAddr);
-        decom.setPrice(300);
-        assertEq(decom.price(), 300);
+
+        vm.expectEmit(true, false, false, false);
+        emit PriceUpdated(qty);
+        decom.setPrice(qty);
+
+        assertEq(decom.price(), qty, "Incorrect price");
     }
 
     function testSetPrice_Fail_onlyOwner() public {
@@ -108,8 +124,12 @@ contract PenguStoreTest is Test {
     function testSetShippingCost() public  {
         uint8 newShippingCost = 15;
         vm.prank(ownerAddr);
+
+        vm.expectEmit(true, false, false, false);
+        emit ShippingCostUpdated(newShippingCost);
         decom.setShippingCost(newShippingCost);
-        assertEq(decom.shippingCost(), newShippingCost);
+
+        assertEq(decom.shippingCost(), newShippingCost, "Incorrect shipping cost");
     }
 
     function testShippingCost_Fail_onlyOwner() public {

@@ -6,12 +6,12 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import "forge-std/console.sol";
 
-import {PriceFeedV3} from "./PriceFeedV3.sol";
-import {IError} from "./IError.sol";
-import {IDeCom} from "./IDeCom.sol";
-import {Status, Order} from "./Container.sol";
+import "./PriceFeedV3.sol";
+import "./IError.sol";
+import "./IDeCom.sol";
+import "./Container.sol";
 
-contract DeCom is IDeCom, IError, Ownable, ReentrancyGuard {
+contract DeCom is IDeCom, IDeComEvents, IError, Ownable, ReentrancyGuard {
     
     uint32 public totalStock;
 
