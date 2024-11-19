@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: No License
 pragma solidity ^0.8.20;
-
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import "forge-std/console.sol";
@@ -10,9 +8,9 @@ import "./PriceFeedV3.sol";
 import "./IError.sol";
 import "./IDeCom.sol";
 import "./Container.sol";
+import "./ItemNFT.sol";
 
-contract DeCom is IDeCom, IDeComEvents, IError, Ownable, ReentrancyGuard {
-    
+contract DeCom is IDeCom, IDeComEvents, IError, ItemNFT, ReentrancyGuard {
     uint32 public totalStock;
 
     // Track number of orders.
@@ -31,7 +29,9 @@ contract DeCom is IDeCom, IDeComEvents, IError, Ownable, ReentrancyGuard {
 
     PriceFeedV3 public priceFeed;
 
-    constructor(address owner, address chainLinkOracle) Ownable(owner) {
+    constructor(address owner, address chainLinkOracle)
+        Ownable(owner)
+    {
         priceFeed = new PriceFeedV3(chainLinkOracle);
     }
 
@@ -131,6 +131,9 @@ contract DeCom is IDeCom, IDeComEvents, IError, Ownable, ReentrancyGuard {
             totalPayment += msg.value;
             orderNo++;
         }
+
+         // Mint NFT
+        _mintItemNFT(msg.sender);
 
         emit PurchaseOrder(orderNo - 1, msg.sender, quantity, msg.value, destination);
     }
