@@ -5,8 +5,8 @@ import "./Container.sol";
 
 interface IDeCom {
      function setStock(uint32 newTotalStock) external;
-     function setPrice(uint256 newPrice) external;
-     function setShippingCost(uint256 newShippingCost) external;
+     function setPrice(uint16 newPrice) external;
+     function setShippingCost(uint16 newShippingCost) external;
      function totalCost(uint32 quantity) external view returns (uint256);
      function purchase(uint32 quantity, string memory destination) external payable;
      function processShipment(uint32 _orderNo) external;

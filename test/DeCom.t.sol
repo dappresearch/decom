@@ -24,12 +24,12 @@ contract PenguStoreTest is Test, IDeComEvents {
 
     address randomGuy;
 
-    uint16 constant STOCK = 300;
+    uint32 constant STOCK = 300;
 
     // Single item price.
-    uint8 price = 15;
+    uint16 constant PRICE = 15;
 
-    uint8 shippingCost = 11;
+    uint16 constant SHIPPINGCOST = 11;
 
     // (Price + Shipping cost) for quanity 1, convert into wei
     // $15 + $11 = $26, calculated at the eth price of $3200
@@ -48,7 +48,7 @@ contract PenguStoreTest is Test, IDeComEvents {
         
         priceFeed = new PriceFeedV3(address(mockOracle));
 
-        decom = new DeCom(ownerAddr, address(mockOracle), price, STOCK);
+        decom = new DeCom(ownerAddr, address(mockOracle), PRICE, SHIPPINGCOST, STOCK);
         
         vm.label(ownerAddr, "Owner Address");
 
@@ -56,10 +56,6 @@ contract PenguStoreTest is Test, IDeComEvents {
         vm.deal(buyer2, 1 ether);
         vm.deal(buyer3, 1 ether);
 
-        vm.startPrank(ownerAddr);
-      
-        decom.setShippingCost(shippingCost);
-        vm.stopPrank();
     }
 
     function testTotalCost() public view {
@@ -96,15 +92,15 @@ contract PenguStoreTest is Test, IDeComEvents {
     }
 
     function testSetPrice() public  {
-        uint32 qty = 300;
+        uint16 newPrice = 300;
 
         vm.prank(ownerAddr);
 
         vm.expectEmit(true, false, false, false);
-        emit PriceUpdated(qty);
-        decom.setPrice(qty);
+        emit PriceUpdated(newPrice);
+        decom.setPrice(newPrice);
 
-        assertEq(decom.price(), qty, "Incorrect price");
+        assertEq(decom.price(), newPrice, "Incorrect price");
     }
 
     function testSetPrice_Fail_onlyOwner() public {

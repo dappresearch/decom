@@ -16,9 +16,9 @@ contract DeCom is IDeCom, IDeComEvents, IError, ItemNFT, ReentrancyGuard {
     // Track number of orders.
     uint32 public orderNo;
 
-    uint256 public shippingCost;
+    uint16 public shippingCost;
 
-    uint256 public price;
+    uint16 public price;
 
     uint256 public totalPayment;
 
@@ -29,16 +29,24 @@ contract DeCom is IDeCom, IDeComEvents, IError, ItemNFT, ReentrancyGuard {
 
     PriceFeedV3 public immutable priceFeed;
 
-    constructor(address owner, address chainLinkOracle, uint256 itemPrice, uint32 NoOfStock)
+    constructor(
+        address owner, 
+        address chainLinkOracle, 
+        uint16 _price,
+        uint16 _shippingCost, 
+        uint32 _totalStock)
         Ownable(owner)
     {
-        if(itemPrice == 0) revert InValidPrice(0);
+        if(_price == 0) revert InValidPrice(0);
 
-        if(NoOfStock == 0) revert InValidQuantity(0);
+        if(_shippingCost == 0) revert InValidShippingCost(0);
+
+        if(_totalStock == 0) revert InValidQuantity(0);
 
         priceFeed = new PriceFeedV3(chainLinkOracle);
-        price = itemPrice;
-        totalStock = NoOfStock;
+        price = _price;
+        shippingCost = _shippingCost;
+        totalStock = _totalStock;
     }
 
     // Store the buyers order
@@ -64,7 +72,7 @@ contract DeCom is IDeCom, IDeComEvents, IError, ItemNFT, ReentrancyGuard {
      * @dev This price will be later converted to Wei using latest ETH/USD Chainlink oracle.
      * @param newPrice Price of the item.
      */
-    function setPrice(uint256 newPrice) external onlyOwner {
+    function setPrice(uint16 newPrice) external onlyOwner {
         price = newPrice;
         emit PriceUpdated(newPrice);
     }
@@ -74,7 +82,7 @@ contract DeCom is IDeCom, IDeComEvents, IError, ItemNFT, ReentrancyGuard {
      * @dev Shipping cost will be later converted to Wei using latest ETH/USD Chainlink oracle.
      * @param newShippingCost Current shipping cost.
      */
-    function setShippingCost(uint256 newShippingCost) external onlyOwner {
+    function setShippingCost(uint16 newShippingCost) external onlyOwner {
         shippingCost = newShippingCost;
         emit ShippingCostUpdated(newShippingCost);
     }
