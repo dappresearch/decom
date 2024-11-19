@@ -27,12 +27,18 @@ contract DeCom is IDeCom, IDeComEvents, IError, ItemNFT, ReentrancyGuard {
     // Revenue generted after fulfilling shipping.
     uint256 public amountAfterShipping;
 
-    PriceFeedV3 public priceFeed;
+    PriceFeedV3 public immutable priceFeed;
 
-    constructor(address owner, address chainLinkOracle)
+    constructor(address owner, address chainLinkOracle, uint256 itemPrice, uint32 NoOfStock)
         Ownable(owner)
     {
+        if(itemPrice == 0) revert InValidPrice(0);
+
+        if(NoOfStock == 0) revert InValidQuantity(0);
+
         priceFeed = new PriceFeedV3(chainLinkOracle);
+        price = itemPrice;
+        totalStock = NoOfStock;
     }
 
     // Store the buyers order
@@ -102,12 +108,12 @@ contract DeCom is IDeCom, IDeComEvents, IError, ItemNFT, ReentrancyGuard {
         string calldata destination
     ) external payable {
         if (quantity == 0 || quantity > totalStock)
-            revert InvalidQuantity(quantity);
+            revert InValidQuantity(quantity);
 
         uint256 totalCostInWei = totalCost(quantity);
 
         // Buyer purchase amount should match the item price.
-        if (msg.value != totalCostInWei) revert InvalidAmount(msg.value);
+        if (msg.value != totalCostInWei) revert InValidAmount(msg.value);
 
         uint256 amount = msg.value;
 
@@ -239,7 +245,7 @@ contract DeCom is IDeCom, IDeComEvents, IError, ItemNFT, ReentrancyGuard {
 
         _checkShippedAndBuyerPayment(order, _orderNo);
 
-        if(msg.sender != order.buyerAddr) revert InvalidCollector(msg.sender);
+        if(msg.sender != order.buyerAddr) revert InValidCollector(msg.sender);
 
         if(order.status != Status.cancelled) revert OrderNotCancelled(_orderNo);
 

@@ -2,9 +2,9 @@
 pragma solidity ^0.8.20;
 
 interface IError {
-    error InvalidQuantity(uint256 quantity);
+    error InValidQuantity(uint256 quantity);
 
-    error InvalidAmount(uint256 amount);
+    error InValidAmount(uint256 amount);
 
     error AlreadyShipped(uint32 orderNo);
 
@@ -14,11 +14,13 @@ interface IError {
 
     error AlreadyCancelled(uint32 orderNo);
 
-    error InvalidCollector(address buyer);
+    error InValidCollector(address buyer);
 
     error OrderNotCancelled(uint32 orderNo);
 
     error AlreadyRefund(uint32 orderNo);
 
     error InValidOrderLength(uint256 orderNo);
+
+    error InValidPrice(uint256 price);
 }

@@ -8,7 +8,6 @@ import {MockAggregratorV3Interface} from "../src/mocks/MockAggregratorV3Interfac
 import  "../src/DeCom.sol";
 
 contract PenguStoreTest is Test, IDeComEvents {
-    
     DeCom public decom;
 
     MockAggregratorV3Interface public mockOracle;
@@ -49,7 +48,7 @@ contract PenguStoreTest is Test, IDeComEvents {
         
         priceFeed = new PriceFeedV3(address(mockOracle));
 
-        decom = new DeCom(ownerAddr, address(mockOracle));
+        decom = new DeCom(ownerAddr, address(mockOracle), price, STOCK);
         
         vm.label(ownerAddr, "Owner Address");
 
@@ -58,8 +57,7 @@ contract PenguStoreTest is Test, IDeComEvents {
         vm.deal(buyer3, 1 ether);
 
         vm.startPrank(ownerAddr);
-        decom.setStock(STOCK);
-        decom.setPrice(price);
+      
         decom.setShippingCost(shippingCost);
         vm.stopPrank();
     }
@@ -186,11 +184,11 @@ contract PenguStoreTest is Test, IDeComEvents {
         assertEq(decom.ownerOf(0), buyer1, 'Incorrect NFT address');
     }
 
-    function testPurchase_InvalidQuantity() public {
+    function testPurchase_InValidQuantity() public {
          uint16 orderStock = 301;
          vm.expectRevert(
             abi.encodeWithSelector(
-                IError.InvalidQuantity.selector,
+                IError.InValidQuantity.selector,
                 orderStock
             )
         );
@@ -202,7 +200,7 @@ contract PenguStoreTest is Test, IDeComEvents {
          uint8 orderPrice = 1 wei ;
          vm.expectRevert(
             abi.encodeWithSelector(
-                IError.InvalidAmount.selector,
+                IError.InValidAmount.selector,
                 orderPrice
             )
         );
@@ -414,7 +412,7 @@ contract PenguStoreTest is Test, IDeComEvents {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                IError.InvalidCollector.selector, buyer3)
+                IError.InValidCollector.selector, buyer3)
         );
         vm.prank(buyer3);
         decom.collectRefund(orderNo);
