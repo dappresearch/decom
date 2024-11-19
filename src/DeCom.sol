@@ -279,15 +279,3 @@ contract DeCom is IDeCom, IDeComEvents, IError, ItemNFT, ReentrancyGuard {
     }
 }
 
-
-// function uri(uint256 tokenId) override public view returns (string memory) {
-//     return string(
-//     abi.encodePacked(
-//         LINK,
-//         Strings.toString(tokenId),
-//         ".json"
-//     )
-//     );
-// }
-
-// string LINK = "https://bafybeiaium7ra2ho4zsdf6ix3t6waynpv2yuhmetd4ndeksd7xr5cqgezy.ipfs.nftstorage.link/";

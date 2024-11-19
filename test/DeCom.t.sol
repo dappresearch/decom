@@ -180,6 +180,10 @@ contract PenguStoreTest is Test, IDeComEvents {
         assertEq(decom.totalPayment(), purchaseAmount, 'Incorrect total payment');
         assertEq(decom.totalStock(), STOCK - orderQty, 'Incorrect total stock');
         assertEq(decom.orderNo(), 1, 'Incorret order No');
+
+        //Mint NFT test
+        assertEq(decom.balanceOf(buyer1), 1, 'Incorrect NFT buyer balance');
+        assertEq(decom.ownerOf(0), buyer1, 'Incorrect NFT address');
     }
 
     function testPurchase_InvalidQuantity() public {
