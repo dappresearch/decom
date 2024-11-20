@@ -27,7 +27,7 @@ contract PriceFeedV3 {
     /**
      * Network: Sepolia
      * Aggregator: ETH/USD
-     * Address: 0x1b44F3514812d835EB1BDB0acB33d3fA3351Ee43
+     * Address: 0x694AA1769357215DE4FAC081bf1f309aDC325306
      */
     constructor(address ethUsdPairAddress) {
         DATAFEED = AggregatorV3Interface(

@@ -6,7 +6,6 @@ This is an ongoing working in progress experimental decentralize store, which wi
 $forge build
 $forge test
 ```
-
 ## Local testnet deployment
 
 ```
