@@ -210,6 +210,14 @@ contract DeCom is IDeCom, IDeComEvents, IError, ItemNFT, ReentrancyGuard {
     }
 
     /**
+     * @notice Change order status by the owner, incase of mistake.
+     */
+    function editOrder(uint32 _orderNo, Status status) external onlyOwner {
+        Order storage order = orders[_orderNo];
+        order.status = status;
+    }
+    
+    /**
     * @dev Private function to update the status of an order.
     * @param _orderNo Order number of the buyer.
     */
@@ -224,6 +232,7 @@ contract DeCom is IDeCom, IDeComEvents, IError, ItemNFT, ReentrancyGuard {
 
         emit OrderCancelled(_orderNo, order.buyerAddr);
     }
+    
     /**
     * @notice Refund money to the buyer.
     * @param _orderNo Order number of the buyer.
