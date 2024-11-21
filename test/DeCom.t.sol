@@ -312,6 +312,13 @@ contract PenguStoreTest is Test, IDeComEvents {
         
         vm.prank(ownerAddr);
         decom.setCancelAndRefund(orderNo);
+
+        Order memory order = decom.getOrderDetails(0);
+
+        assertEq(
+            uint256(order.status),
+            uint256(Status.cancelled)
+        );
     }
 
     function testSetCancelAndRefundFail_AlreadyCancelled() public {

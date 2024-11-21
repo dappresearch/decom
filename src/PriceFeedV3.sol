@@ -38,7 +38,7 @@ contract PriceFeedV3 {
     /**
      * Returns the latest answer, which is eth/usd price.
      */
-    function getChainlinkDataFeedLatestAnswer() internal view returns (int) {
+    function getChainlinkDataFeedLatestAnswer() public view returns (int) {
         // prettier-ignore
         (
             /* uint80 roundID */,
