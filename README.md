@@ -14,7 +14,7 @@ $ forge test
 ## Local testnet deployment
 
 ```
-$anvil
+$ anvil
 $ source .env
 $ forge script script/DeCom.s.sol:Anvil --fork-url http://localhost:8545 --broadcast
 ```
@@ -22,8 +22,8 @@ $ forge script script/DeCom.s.sol:Anvil --fork-url http://localhost:8545 --broad
 ## Sepolia testnet deployment
 
 ```
-$ sournce .env
-$  forge script script/DeCom.s.sol:Sepolia --rpc-url $SEPOLIA_RPC_URL --broadcast
+$ source .env
+$ forge script script/DeCom.s.sol:Sepolia --rpc-url $SEPOLIA_RPC_URL --broadcast
 ```
 
 
@@ -31,7 +31,7 @@ $  forge script script/DeCom.s.sol:Sepolia --rpc-url $SEPOLIA_RPC_URL --broadcas
 
 ```
 $ source .env
-$  forge script script/DeCom.s.sol:ArbitrumSepolia --rpc-url $ARBITRUM_SEPOLIA --broadcast 
+$ forge script script/DeCom.s.sol:ArbitrumSepolia --rpc-url $ARBITRUM_SEPOLIA --broadcast 
 ```
 
 
