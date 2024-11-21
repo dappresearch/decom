@@ -6,20 +6,33 @@ This is an ongoing working in progress experimental decentralize store, which wi
 $ forge build
 $ forge test
 ```
+
+-See env.example before any of the following depoloyment.
+
+-create .env file and structure the variables according to env.example.
+
 ## Local testnet deployment
 
 ```
 $anvil
-$ forge script script/DeCom.s.sol:AnvilMyScript --fork-url http://localhost:8545 --broadcast
-$ forge script script/DeCom.s.sol:SepoliaMyScript --rpc-url $SEPOLIA_RPC_URL --broadcast --verify -vvvv
+$ source .env
+$ forge script script/DeCom.s.sol:Anvil --fork-url http://localhost:8545 --broadcast
 ```
 
 ## Sepolia testnet deployment
 
 ```
-$  forge script script/DeCom.s.sol:SepoliaMyScript --rpc-url $SEPOLIA_RPC_URL --broadcast --verify -vvvv
+$ sournce .env
+$  forge script script/DeCom.s.sol:Sepolia --rpc-url $SEPOLIA_RPC_URL --broadcast
 ```
 
+
+## Arbitrum Sepolia testnet deploye
+
+```
+$ source .env
+$  forge script script/DeCom.s.sol:ArbitrumSepolia --rpc-url $ARBITRUM_SEPOLIA --broadcast 
+```
 
 
 
