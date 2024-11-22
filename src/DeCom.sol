@@ -196,7 +196,7 @@ contract DeCom is IDeCom, IDeComEvents, IError, ItemNFT, ReentrancyGuard {
 
         payable(owner()).transfer(withdrawAmount);
 
-        emit Withdrawn(withdrawAmount, owner());
+        emit Withdraw(withdrawAmount, owner());
     }
 
     /**

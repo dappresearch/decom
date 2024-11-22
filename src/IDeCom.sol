@@ -27,7 +27,7 @@ interface IDeComEvents {
      event ShippingCostUpdated(uint256 indexed newShippingCost);
      event PurchaseOrder(uint32 indexed orderNo, address indexed buyer, uint32 indexed quantity, uint256 amount, string destination);
      event OrderShipped(uint32 indexed orderNo, address indexed buyer);
-     event Withdrawn(uint256 indexed amount, address indexed owner);
+     event Withdraw(uint256 indexed amount, address indexed owner);
      event OrderCancelled(uint32 indexed orderNo, address indexed buyer);
      event RefundCollected(uint32 indexed orderNo, address indexed buyer, uint256 indexed amount);
 }

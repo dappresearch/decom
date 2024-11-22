@@ -57,7 +57,6 @@ contract PenguStoreTest is Test, IDeComEvents {
         vm.deal(buyer1, 5 ether);
         vm.deal(buyer2, 5 ether);
         vm.deal(buyer3, 5 ether);
-
     }
 
     function testTotalCost() public view {
@@ -151,9 +150,13 @@ contract PenguStoreTest is Test, IDeComEvents {
     function testPurchase() public {
         orderQty = 1;
         // Get the purchase amount in Wei.
-       purchaseAmount = decom.totalCost(orderQty);
-
+        purchaseAmount = decom.totalCost(orderQty);
+        
         vm.prank(buyer1);
+
+        // event ShippingCostUpdated test.
+        vm.expectEmit(true, true, true, true);
+        emit PurchaseOrder(0, buyer1, orderQty, purchaseAmount, 'randomAddress');
         decom.purchase{value: totalPrice }(orderQty, 'randomAddress');
 
         Order memory order = decom.getOrderDetails(decom.orderNo() - 1);
@@ -210,13 +213,16 @@ contract PenguStoreTest is Test, IDeComEvents {
         orderQty = 199;
        
         // Get the purchase amount in Wei.
-       purchaseAmount = decom.totalCost(orderQty);
+        purchaseAmount = decom.totalCost(orderQty);
 
         vm.prank(buyer1);
         decom.purchase{value: purchaseAmount }(orderQty, 'randomAddress');
     
         // Process shipment after receiving the order.
         vm.prank(ownerAddr);
+        
+        vm.expectEmit(true, true, false, false);
+        emit OrderShipped(0, buyer1);
         decom.processShipment(0);
 
         // Check order status.
@@ -272,7 +278,7 @@ contract PenguStoreTest is Test, IDeComEvents {
     function testWithdraw() public {
         orderQty = 163;
         // Get the purchase amount in Wei.
-       purchaseAmount = decom.totalCost(orderQty);
+        purchaseAmount = decom.totalCost(orderQty);
 
         vm.prank(buyer2);
         decom.purchase{value: purchaseAmount }(orderQty, 'randomAddress');
@@ -281,6 +287,9 @@ contract PenguStoreTest is Test, IDeComEvents {
         decom.processShipment(0);
         
         vm.prank(ownerAddr);
+        
+        vm.expectEmit(true, true, false, false);
+        emit Withdraw(purchaseAmount, ownerAddr);
         decom.withdraw();
 
         assertEq(decom.amountAfterShipping(), 0);
@@ -333,9 +342,12 @@ contract PenguStoreTest is Test, IDeComEvents {
         
         vm.prank(ownerAddr);
         decom.setCancelAndRefund(orderNo);
+        
+        // vm.expectEmit(true, true, false, false);
+        // emit OrderCancelled(orderNo, buyer1);
 
         Order memory order = decom.getOrderDetails(0);
-        
+
         assertEq(
             uint256(order.status),
             uint256(Status.cancelled),
@@ -435,6 +447,9 @@ contract PenguStoreTest is Test, IDeComEvents {
         decom.setCancelAndRefund(orderNo);
 
         vm.prank(buyer1);
+
+        vm.expectEmit(true, true, true, false);
+        emit RefundCollected(orderNo, buyer1, purchaseAmount);
         decom.collectRefund(orderNo);
 
         Order memory order = decom.getOrderDetails(orderNo);
