@@ -16,8 +16,10 @@ contract PenguStoreTest is Test, IDeComEvents {
 
     IDeCom idecom;
 
-    address ownerAddr;
+    uint32 orderQty;
+    uint256 purchaseAmount;
 
+    address ownerAddr;
     address buyer1;
     address buyer2;
     address buyer3;
@@ -147,9 +149,9 @@ contract PenguStoreTest is Test, IDeComEvents {
     }
        
     function testPurchase() public {
-        uint32 orderQty = 1;
+        orderQty = 1;
         // Get the purchase amount in Wei.
-        uint256 purchaseAmount = decom.totalCost(orderQty);
+       purchaseAmount = decom.totalCost(orderQty);
 
         vm.prank(buyer1);
         decom.purchase{value: totalPrice }(orderQty, 'randomAddress');
@@ -205,10 +207,10 @@ contract PenguStoreTest is Test, IDeComEvents {
     }
 
     function testProcessShipment() public {
-        uint32 orderQty = 199;
+        orderQty = 199;
        
         // Get the purchase amount in Wei.
-        uint256 purchaseAmount = decom.totalCost(orderQty);
+       purchaseAmount = decom.totalCost(orderQty);
 
         vm.prank(buyer1);
         decom.purchase{value: purchaseAmount }(orderQty, 'randomAddress');
@@ -229,9 +231,9 @@ contract PenguStoreTest is Test, IDeComEvents {
     }
     
     function testProcessShipmentFail_AlreadyShipped() public {
-        uint32 orderQty = 52;
+        orderQty = 52;
         // Get the purchase amount in Wei.
-        uint256 purchaseAmount = decom.totalCost(orderQty);
+       purchaseAmount = decom.totalCost(orderQty);
 
         vm.prank(buyer1);
         decom.purchase{value: purchaseAmount }(orderQty, 'randomAddress');
@@ -250,9 +252,9 @@ contract PenguStoreTest is Test, IDeComEvents {
     }
 
      function testProcessShipmentFail_OnlyOwner() public {
-        uint32 orderQty = 63;
+        orderQty = 63;
         // Get the purchase amount in Wei.
-        uint256 purchaseAmount = decom.totalCost(orderQty);
+       purchaseAmount = decom.totalCost(orderQty);
 
         vm.prank(buyer1);
         decom.purchase{value: purchaseAmount }(orderQty, 'randomAddress');
@@ -268,9 +270,9 @@ contract PenguStoreTest is Test, IDeComEvents {
     }
 
     function testWithdraw() public {
-        uint32 orderQty = 163;
+        orderQty = 163;
         // Get the purchase amount in Wei.
-        uint256 purchaseAmount = decom.totalCost(orderQty);
+       purchaseAmount = decom.totalCost(orderQty);
 
         vm.prank(buyer2);
         decom.purchase{value: purchaseAmount }(orderQty, 'randomAddress');
@@ -320,9 +322,9 @@ contract PenguStoreTest is Test, IDeComEvents {
     }
 
     function testSetCancelAndRefund() public {
-        uint32 orderQty = 206;
+        orderQty = 206;
         // Get the purchase amount in Wei.
-        uint256 purchaseAmount = decom.totalCost(orderQty);
+       purchaseAmount = decom.totalCost(orderQty);
 
         vm.prank(buyer1);
         decom.purchase{value: purchaseAmount }(orderQty, 'randomAddress');
@@ -345,9 +347,9 @@ contract PenguStoreTest is Test, IDeComEvents {
     }
 
     function testSetCancelAndRefundFail_AlreadyCancelled() public {
-        uint32 orderQty = 103;
+        orderQty = 103;
         // Get the purchase amount in Wei.
-        uint256 purchaseAmount = decom.totalCost(orderQty);
+       purchaseAmount = decom.totalCost(orderQty);
 
         vm.prank(buyer1);
         decom.purchase{value: purchaseAmount }(orderQty, 'randomAddress');
@@ -366,9 +368,9 @@ contract PenguStoreTest is Test, IDeComEvents {
     }
 
      function testSetCancelAndRefundFail_AlreadyShipped() public {
-         uint32 orderQty = 111;
+         orderQty = 111;
         // Get the purchase amount in Wei.
-        uint256 purchaseAmount = decom.totalCost(orderQty);
+       purchaseAmount = decom.totalCost(orderQty);
 
         vm.prank(buyer1);
         decom.purchase{value: purchaseAmount }(orderQty, 'randomAddress');
@@ -387,8 +389,8 @@ contract PenguStoreTest is Test, IDeComEvents {
     }
 
     function testSetCancelAndRefund_Loop() public {
-        uint32 orderQty = 112;
-        uint256 purchaseAmount = decom.totalCost(orderQty);
+        orderQty = 112;
+       purchaseAmount = decom.totalCost(orderQty);
         vm.prank(buyer2);
         decom.purchase{value: purchaseAmount }(orderQty, 'randomAddress');
 
@@ -422,8 +424,8 @@ contract PenguStoreTest is Test, IDeComEvents {
     }
 
     function testCollectRefund() public { 
-        uint32 orderQty = 112;
-        uint256 purchaseAmount = decom.totalCost(orderQty);
+        orderQty = 112;
+       purchaseAmount = decom.totalCost(orderQty);
         vm.prank(buyer1);
         decom.purchase{value: purchaseAmount }(orderQty, 'randomAddress');
 
@@ -447,8 +449,8 @@ contract PenguStoreTest is Test, IDeComEvents {
     }
 
     function testCollectRefund_invalidCollector() public {
-        uint32 orderQty = 213;
-        uint256 purchaseAmount = decom.totalCost(orderQty);
+        orderQty = 213;
+       purchaseAmount = decom.totalCost(orderQty);
         vm.prank(buyer1);
         decom.purchase{value: purchaseAmount }(orderQty, 'randomAddress');
 
@@ -466,8 +468,8 @@ contract PenguStoreTest is Test, IDeComEvents {
     }
 
     function testCollectRefund_InsufficientBuyerPayment() public {
-        uint32 orderQty = 112;
-        uint256 purchaseAmount = decom.totalCost(orderQty);
+        orderQty = 112;
+       purchaseAmount = decom.totalCost(orderQty);
 
         vm.prank(buyer1);
         decom.purchase{value: purchaseAmount }(orderQty, 'randomAddress');
@@ -488,8 +490,8 @@ contract PenguStoreTest is Test, IDeComEvents {
     }
 
     function testCollectRefund_AlreadyShipped() public {
-        uint32 orderQty = 100;
-        uint256 purchaseAmount = decom.totalCost(orderQty);
+        orderQty = 100;
+       purchaseAmount = decom.totalCost(orderQty);
         vm.prank(buyer1);
         decom.purchase{value: purchaseAmount }(orderQty, 'randomAddress');
 
@@ -507,8 +509,8 @@ contract PenguStoreTest is Test, IDeComEvents {
     }
 
     function testCollectRefund_OrderedNotCancelled() public {
-        uint32 orderQty = 114;
-        uint256 purchaseAmount = decom.totalCost(orderQty);
+        orderQty = 114;
+       purchaseAmount = decom.totalCost(orderQty);
         vm.prank(buyer1);
         decom.purchase{value: purchaseAmount }(orderQty, 'randomAddress');
 
