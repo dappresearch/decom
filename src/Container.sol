@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 enum Status {
+        none,
         pending,
         shipped,
         cancelled,
@@ -10,7 +11,7 @@ enum Status {
 
 struct Order {
         string shippingAddr;
-        uint256 quantity;
+        uint32 quantity;
         uint256 amount;
         address buyerAddr;
         Status status;

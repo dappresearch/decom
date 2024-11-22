@@ -162,6 +162,10 @@ contract DeCom is IDeCom, IDeComEvents, IError, ItemNFT, ReentrancyGuard {
         // Order should not be shipped.
         if (order.status == Status.shipped) revert AlreadyShipped(_orderNo);
 
+        if (order.status == Status.cancelled) revert AlreadyCancelled(_orderNo);
+
+        if (order.status == Status.refund) revert AlreadyRefund(_orderNo);
+
         // Buyer should have sufficient balance in the contract.
         if(payments[order.buyerAddr] < order.amount) revert InsufficientBuyerPayment(_orderNo);
 
@@ -196,6 +200,14 @@ contract DeCom is IDeCom, IDeComEvents, IError, ItemNFT, ReentrancyGuard {
     }
 
     /**
+     * @notice Change order status by the owner, incase of mistake.
+     */
+    function editOrder(uint32 _orderNo, Status status) external onlyOwner {
+        Order storage order = orders[_orderNo];
+        order.status = status;
+    }
+
+     /**
     * @dev Internal function to check if order is shipped and buyer has sufficient balance.
     * @param order Struct Order.
     * @param _orderNo Order number of the buyer.
@@ -210,15 +222,9 @@ contract DeCom is IDeCom, IDeComEvents, IError, ItemNFT, ReentrancyGuard {
     }
 
     /**
-     * @notice Change order status by the owner, incase of mistake.
-     */
-    function editOrder(uint32 _orderNo, Status status) external onlyOwner {
-        Order storage order = orders[_orderNo];
-        order.status = status;
-    }
-    
-    /**
-    * @dev Private function to update the status of an order.
+    * @notice Private function to update the status of an order.
+    * @dev For order.status == Status.none, it will still revert to
+    *  `InsufficientBuyerPayment`.
     * @param _orderNo Order number of the buyer.
     */
     function _updateOrderStatus(uint32 _orderNo) private {
@@ -229,6 +235,11 @@ contract DeCom is IDeCom, IDeComEvents, IError, ItemNFT, ReentrancyGuard {
         if (order.status == Status.cancelled) revert AlreadyCancelled(_orderNo);
 
         order.status = Status.cancelled;
+        
+        // Cancelled orders should put back to available stock.
+        unchecked {
+            totalStock += order.quantity;
+        }
 
         emit OrderCancelled(_orderNo, order.buyerAddr);
     }

@@ -27,7 +27,7 @@ $ forge script script/DeCom.s.sol:Sepolia --rpc-url $SEPOLIA_RPC_URL --broadcast
 ```
 
 
-## Arbitrum Sepolia testnet deploye
+## Arbitrum Sepolia testnet deployment
 
 ```
 $ source .env
