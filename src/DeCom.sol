@@ -201,10 +201,23 @@ contract DeCom is IDeCom, IDeComEvents, IError, ItemNFT, ReentrancyGuard {
 
     /**
      * @notice Change order status by the owner, incase of mistake.
+     * @dev Need to subract totalStock, since cancellation will add the totalStock.
      */
-    function editOrder(uint32 _orderNo, Status status) external onlyOwner {
+    function editOrderCancelToPending(uint32 _orderNo) external onlyOwner {
         Order storage order = orders[_orderNo];
-        order.status = status;
+        // Order has been cancelled.
+        // Change back to pending
+        // it's need to add total stock back
+
+        if(order.status != Status.cancelled) revert InValidStatus(_orderNo);
+
+        order.status = Status.pending;
+
+        unchecked {
+                totalStock -= order.quantity;
+            }
+
+        emit PurchaseOrder(orderNo, msg.sender, order.quantity, order.amount, order.shippingAddr);
     }
 
      /**

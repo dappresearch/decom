@@ -382,7 +382,7 @@ contract PenguStoreTest is Test, IDeComEvents {
      function testSetCancelAndRefundFail_AlreadyShipped() public {
          orderQty = 111;
         // Get the purchase amount in Wei.
-       purchaseAmount = decom.totalCost(orderQty);
+         purchaseAmount = decom.totalCost(orderQty);
 
         vm.prank(buyer1);
         decom.purchase{value: purchaseAmount }(orderQty, 'randomAddress');
@@ -402,7 +402,7 @@ contract PenguStoreTest is Test, IDeComEvents {
 
     function testSetCancelAndRefund_Loop() public {
         orderQty = 112;
-       purchaseAmount = decom.totalCost(orderQty);
+        purchaseAmount = decom.totalCost(orderQty);
         vm.prank(buyer2);
         decom.purchase{value: purchaseAmount }(orderQty, 'randomAddress');
 
@@ -435,6 +435,47 @@ contract PenguStoreTest is Test, IDeComEvents {
         assertEq(decom.totalStock(), STOCK, "InValid Stock");
     }
 
+    function testeditOrderCancelToPending() public {
+        orderQty = 206;
+        // Get the purchase amount in Wei.
+       purchaseAmount = decom.totalCost(orderQty);
+
+        vm.prank(buyer1);
+        decom.purchase{value: purchaseAmount }(orderQty, 'randomAddress');
+        
+        uint32 orderNo = decom.buyersOrder(buyer1, 0);
+        
+        vm.startPrank(ownerAddr);
+        decom.setCancelAndRefund(orderNo);  
+        decom.editOrderCancelToPending(orderNo);
+        vm.stopPrank();
+    
+        Order memory order = decom.getOrderDetails(0);
+        assertEq(
+        uint256(order.status),
+        uint256(Status.pending)
+        );
+        
+    }
+
+    function testeditOrderCancelToPending_InValidStatus() public {
+        orderQty = 206;
+        // Get the purchase amount in Wei.
+        purchaseAmount = decom.totalCost(orderQty);
+
+        vm.prank(buyer1);
+        decom.purchase{value: purchaseAmount }(orderQty, 'randomAddress');
+        
+        uint32 orderNo = decom.buyersOrder(buyer1, 0);
+        
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IError.InValidStatus.selector, orderNo)
+        );
+        vm.prank(ownerAddr);
+        decom.editOrderCancelToPending(orderNo); 
+    }
+    
     function testCollectRefund() public { 
         orderQty = 112;
        purchaseAmount = decom.totalCost(orderQty);
@@ -503,7 +544,7 @@ contract PenguStoreTest is Test, IDeComEvents {
         vm.prank(buyer1);
         decom.collectRefund(orderNo);
     }
-
+    
     function testCollectRefund_AlreadyShipped() public {
         orderQty = 100;
        purchaseAmount = decom.totalCost(orderQty);

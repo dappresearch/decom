@@ -25,4 +25,6 @@ interface IError {
     error InValidPrice(uint256 price);
 
     error InValidShippingCost(uint256 price);
+
+    error InValidStatus(uint32 orderNo);
 }
